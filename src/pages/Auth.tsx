@@ -45,7 +45,7 @@ export default function Auth() {
           description: 'Logged in successfully!',
         });
         
-        window.location.href = '/';
+        window.location.href = '/dashboard';
       } else {
         const redirectUrl = `${window.location.origin}/`;
         
