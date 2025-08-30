@@ -1,8 +1,13 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Task {
   id: number;
@@ -23,6 +28,15 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'high' | 'medium' | 'low',
+    dueDate: '',
+    assignee: 'intern'
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -108,6 +122,47 @@ export default function Dashboard() {
     }
   };
 
+  const createTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title.trim() || !newTask.description.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const savedTasks = localStorage.getItem('tasks');
+    const existingTasks = savedTasks ? JSON.parse(savedTasks) : [];
+    
+    const newTaskWithId = {
+      ...newTask,
+      id: Math.max(...existingTasks.map((t: Task) => t.id), 0) + 1,
+    };
+
+    const updatedTasks = [...existingTasks, newTaskWithId];
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    
+    toast({
+      title: 'Success',
+      description: 'Task created successfully!',
+    });
+
+    // Reset form and close modal
+    setNewTask({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+      assignee: 'intern'
+    });
+    setShowCreateTask(false);
+    
+    // Reload tasks
+    loadTasks();
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-600';
@@ -168,7 +223,7 @@ export default function Dashboard() {
         </nav>
       </header>
 
-      <section className="text-center mb-8">
+      <section className="text-center mb-8 space-x-4">
         <Button 
           onClick={() => navigate('/gallery')} 
           variant="outline"
@@ -176,6 +231,16 @@ export default function Dashboard() {
         >
           Upload Images
         </Button>
+        
+        {profile?.role === 'chief_architect' && (
+          <Button 
+            onClick={() => setShowCreateTask(true)} 
+            variant="outline"
+            className="text-accent border-accent hover:bg-accent hover:text-background text-lg px-6 py-3"
+          >
+            Create Task
+          </Button>
+        )}
       </section>
 
       <section>
@@ -215,6 +280,99 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* Create Task Modal */}
+      {showCreateTask && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Create New Task</CardTitle>
+              <CardDescription>
+                Assign a new task to team members
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={createTask} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taskTitle">Task Title</Label>
+                  <Input
+                    id="taskTitle"
+                    type="text"
+                    placeholder="Enter task title"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="taskDescription">Description</Label>
+                  <Input
+                    id="taskDescription"
+                    type="text"
+                    placeholder="Enter task description"
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="taskPriority">Priority</Label>
+                  <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="taskDueDate">Due Date</Label>
+                  <Input
+                    id="taskDueDate"
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="taskAssignee">Assign To</Label>
+                  <Select value={newTask.assignee} onValueChange={(value: any) => setNewTask({ ...newTask, assignee: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="intern">Intern</SelectItem>
+                      <SelectItem value="junior_architect">Junior Architect</SelectItem>
+                      <SelectItem value="chief_architect">Chief Architect</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex gap-2 pt-4">
+                  <Button type="submit" className="flex-1">
+                    Create Task
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowCreateTask(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

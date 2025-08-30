@@ -27,13 +27,30 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
+  const cleanupAuthState = () => {
+    // Clean up any existing auth tokens
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        // Clean up existing state before login
+        cleanupAuthState();
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (err) {
+          // Continue even if this fails
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -45,11 +62,19 @@ export default function Auth() {
           description: 'Logged in successfully!',
         });
         
+        // Force page reload for clean state
         window.location.href = '/dashboard';
       } else {
-        const redirectUrl = `${window.location.origin}/`;
+        cleanupAuthState();
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (err) {
+          // Continue even if this fails
+        }
+
+        const redirectUrl = `${window.location.origin}/dashboard`;
         
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -65,8 +90,14 @@ export default function Auth() {
 
         toast({
           title: 'Success',
-          description: 'Account created successfully! Please check your email to confirm your account.',
+          description: 'Account created! For testing, you can skip email verification by signing in directly.',
         });
+
+        // Auto switch to login mode after signup
+        setIsLogin(true);
+        setEmail('');
+        setPassword('');
+        setFullName('');
       }
     } catch (error: any) {
       toast({
@@ -132,6 +163,7 @@ export default function Auth() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="bg-muted/30 border-border focus:bg-background"
                 required
               />
             </div>
