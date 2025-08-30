@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -113,12 +114,18 @@ export default function Dashboard() {
     const allTasks = savedTasks ? JSON.parse(savedTasks) : defaultTasks;
     
     if (profile?.role) {
+      // Fix task filtering by exact role match
       const userTasks = allTasks.filter((task: Task) => 
-        task.assignee.toLowerCase().replace('_', ' ') === profile.role.toLowerCase().replace('_', ' ')
+        task.assignee === profile.role
       );
       setTasks(userTasks);
     } else {
-      setTasks(allTasks);
+      // Only show all tasks for chief architect
+      if (profile?.role === 'chief_architect') {
+        setTasks(allTasks);
+      } else {
+        setTasks([]);
+      }
     }
   };
 
@@ -161,6 +168,71 @@ export default function Dashboard() {
     
     // Reload tasks
     loadTasks();
+  };
+
+  const updateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask || !newTask.title.trim() || !newTask.description.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const savedTasks = localStorage.getItem('tasks');
+    const existingTasks = savedTasks ? JSON.parse(savedTasks) : [];
+    
+    const updatedTasks = existingTasks.map((task: Task) =>
+      task.id === editingTask.id ? { ...newTask, id: editingTask.id } : task
+    );
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    
+    toast({
+      title: 'Success',
+      description: 'Task updated successfully!',
+    });
+
+    // Reset form and close modal
+    setNewTask({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+      assignee: 'intern'
+    });
+    setEditingTask(null);
+    
+    // Reload tasks
+    loadTasks();
+  };
+
+  const deleteTask = (taskId: number) => {
+    const savedTasks = localStorage.getItem('tasks');
+    const existingTasks = savedTasks ? JSON.parse(savedTasks) : [];
+    
+    const updatedTasks = existingTasks.filter((task: Task) => task.id !== taskId);
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    
+    toast({
+      title: 'Success',
+      description: 'Task deleted successfully!',
+    });
+    
+    // Reload tasks
+    loadTasks();
+  };
+
+  const startEditTask = (task: Task) => {
+    setEditingTask(task);
+    setNewTask({
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      dueDate: task.dueDate,
+      assignee: task.assignee
+    });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -259,8 +331,29 @@ export default function Dashboard() {
                 key={task.id}
                 className="bg-white text-green-800 rounded-xl p-4 shadow-lg min-h-32 flex flex-col justify-between relative"
               >
+                {profile?.role === 'chief_architect' && (
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => startEditTask(task)}
+                      className="h-6 w-6 p-0 text-xs"
+                    >
+                      ✏️
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteTask(task.id)}
+                      className="h-6 w-6 p-0 text-xs"
+                    >
+                      🗑️
+                    </Button>
+                  </div>
+                )}
+                
                 <div>
-                  <div className="font-bold text-lg mb-1">{task.title}</div>
+                  <div className="font-bold text-lg mb-1 pr-16">{task.title}</div>
                   <div className="text-sm mb-3">{task.description}</div>
                 </div>
                 
@@ -281,18 +374,18 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Create Task Modal */}
-      {showCreateTask && (
+      {/* Create/Edit Task Modal */}
+      {(showCreateTask || editingTask) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-md bg-card">
             <CardHeader>
-              <CardTitle>Create New Task</CardTitle>
+              <CardTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</CardTitle>
               <CardDescription>
-                Assign a new task to team members
+                {editingTask ? 'Update task details' : 'Assign a new task to team members'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={createTask} className="space-y-4">
+              <form onSubmit={editingTask ? updateTask : createTask} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="taskTitle">Task Title</Label>
                   <Input
@@ -357,12 +450,22 @@ export default function Dashboard() {
                 
                 <div className="flex gap-2 pt-4">
                   <Button type="submit" className="flex-1">
-                    Create Task
+                    {editingTask ? 'Update Task' : 'Create Task'}
                   </Button>
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setShowCreateTask(false)}
+                    onClick={() => {
+                      setShowCreateTask(false);
+                      setEditingTask(null);
+                      setNewTask({
+                        title: '',
+                        description: '',
+                        priority: 'medium',
+                        dueDate: '',
+                        assignee: 'intern'
+                      });
+                    }}
                     className="flex-1"
                   >
                     Cancel
