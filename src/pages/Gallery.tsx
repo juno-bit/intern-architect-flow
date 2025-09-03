@@ -58,7 +58,7 @@ export default function Gallery() {
           *,
           projects (name),
           tasks (title),
-          profiles:uploaded_by (full_name)
+          profiles!images_uploaded_by_fkey (full_name)
         `)
         .order('created_at', { ascending: false });
 
