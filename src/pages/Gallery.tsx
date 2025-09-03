@@ -92,8 +92,8 @@ export default function Gallery() {
     try {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `images/${fileName}`;
+      const fileName = `${user?.id}/${Math.random()}.${fileExt}`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('WI storage')
@@ -136,7 +136,7 @@ export default function Gallery() {
       // Extract file path from URL for storage deletion
       const urlParts = imageUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
-      const filePath = `images/${fileName}`;
+      const filePath = `${user?.id}/${fileName}`;
 
       // Delete from storage
       const { error: storageError } = await supabase.storage

@@ -21,8 +21,14 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Get tasks due within 2 days
+    const today = new Date();
     const twoDaysFromNow = new Date();
-    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+    twoDaysFromNow.setDate(today.getDate() + 2);
+    
+    const todayString = today.toISOString().split('T')[0];
+    const twoDaysString = twoDaysFromNow.toISOString().split('T')[0];
+
+    console.log(`Checking for tasks between ${todayString} and ${twoDaysString}`);
 
     const { data: upcomingTasks, error } = await supabase
       .from("tasks")
@@ -42,20 +48,51 @@ const handler = async (req: Request): Promise<Response> => {
           name
         )
       `)
-      .eq("status", "pending")
-      .or(`status.eq.in_progress`)
-      .lte("due_date", twoDaysFromNow.toISOString().split('T')[0])
+      .in("status", ["pending", "in_progress"])
+      .gte("due_date", todayString)
+      .lte("due_date", twoDaysString)
       .not("assigned_to", "is", null);
 
-    if (error) {
-      console.error("Error fetching tasks:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
+    console.log(`Found ${upcomingTasks?.length || 0} upcoming tasks`);
+    
+    // Also get overdue tasks (due before today and still not completed)
+    const { data: overdueTasks, error: overdueError } = await supabase
+      .from("tasks")
+      .select(`
+        id,
+        title,
+        description,
+        due_date,
+        priority,
+        status,
+        assigned_to,
+        profiles!tasks_assigned_to_fkey (
+          email,
+          full_name
+        ),
+        projects (
+          name
+        )
+      `)
+      .in("status", ["pending", "in_progress"])
+      .lt("due_date", todayString)
+      .not("assigned_to", "is", null);
+
+    console.log(`Found ${overdueTasks?.length || 0} overdue tasks`);
+
+    // Combine both arrays
+    const allTasksToNotify = [...(upcomingTasks || []), ...(overdueTasks || [])];
+
+    if (error || overdueError) {
+      const errorMsg = error?.message || overdueError?.message || "Unknown error";
+      console.error("Error fetching tasks:", errorMsg);
+      return new Response(JSON.stringify({ error: errorMsg }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const emailPromises = upcomingTasks.map(async (task) => {
+    const emailPromises = allTasksToNotify.map(async (task) => {
       const assignee = task.profiles;
       if (!assignee?.email) return null;
 
@@ -127,12 +164,14 @@ const handler = async (req: Request): Promise<Response> => {
     const results = await Promise.allSettled(emailPromises);
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
 
-    console.log(`Deadline notifications sent: ${successCount}/${upcomingTasks.length} emails`);
+    console.log(`Deadline notifications sent: ${successCount}/${allTasksToNotify.length} emails`);
 
     return new Response(
       JSON.stringify({
         message: `Sent ${successCount} deadline notifications`,
-        totalTasks: upcomingTasks.length,
+        totalTasks: allTasksToNotify.length,
+        upcomingTasks: upcomingTasks?.length || 0,
+        overdueTasks: overdueTasks?.length || 0,
       }),
       {
         status: 200,

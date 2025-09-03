@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Plus, Edit2, Trash2, Calendar, User, AlertCircle } from 'lucide-react';
+import { Upload, Plus, Edit2, Trash2, Calendar, User, AlertCircle, Table, Bell } from 'lucide-react';
 import { toast } from 'sonner';
+import TasksTable from '@/components/TasksTable';
+import DeadlineAlertsTab from '@/components/DeadlineAlertsTab';
 
 interface Task {
   id: string;
@@ -70,6 +72,7 @@ export default function Dashboard() {
     name: '',
     description: ''
   });
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -244,6 +247,7 @@ export default function Dashboard() {
       if (error) throw error;
       
       setShowProjectModal(false);
+      setEditingProject(null);
       setProjectForm({ name: '', description: '' });
       fetchProjects();
       toast.success('Project created successfully');
@@ -251,6 +255,55 @@ export default function Dashboard() {
       console.error('Error creating project:', error);
       toast.error('Error creating project');
     }
+  };
+
+  const updateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update(projectForm)
+        .eq('id', editingProject.id);
+
+      if (error) throw error;
+      
+      setShowProjectModal(false);
+      setEditingProject(null);
+      setProjectForm({ name: '', description: '' });
+      fetchProjects();
+      toast.success('Project updated successfully');
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast.error('Error updating project');
+    }
+  };
+
+  const deleteProject = async (projectId: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) throw error;
+      
+      fetchProjects();
+      toast.success('Project deleted successfully');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Error deleting project');
+    }
+  };
+
+  const startEditProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectForm({
+      name: project.name,
+      description: project.description || ''
+    });
+    setShowProjectModal(true);
   };
 
   const sendDeadlineNotifications = async () => {
@@ -345,12 +398,14 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="tasks">My Tasks</TabsTrigger>
             {profile?.role === 'chief_architect' && (
               <>
                 <TabsTrigger value="manage-tasks">Manage Tasks</TabsTrigger>
+                <TabsTrigger value="all-tasks">All Tasks Table</TabsTrigger>
                 <TabsTrigger value="projects">Projects</TabsTrigger>
+                <TabsTrigger value="alerts">Deadline Alerts</TabsTrigger>
                 <TabsTrigger value="reports">Reports</TabsTrigger>
               </>
             )}
@@ -506,6 +561,15 @@ export default function Dashboard() {
                 </div>
               </TabsContent>
 
+              <TabsContent value="all-tasks" className="space-y-6">
+                <TasksTable 
+                  tasks={tasks}
+                  onEditTask={startEditTask}
+                  onDeleteTask={deleteTask}
+                  onUpdateStatus={updateTaskStatus}
+                />
+              </TabsContent>
+
               <TabsContent value="projects" className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Projects</h2>
@@ -518,8 +582,26 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {projects.map((project) => (
                     <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <CardTitle>{project.name}</CardTitle>
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start">
+                          <CardTitle>{project.name}</CardTitle>
+                          <div className="flex space-x-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => startEditProject(project)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteProject(project.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {project.description && (
@@ -540,6 +622,10 @@ export default function Dashboard() {
                     </Card>
                   ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="alerts" className="space-y-6">
+                <DeadlineAlertsTab userId={user?.id || ''} userRole={profile?.role || ''} />
               </TabsContent>
 
               <TabsContent value="reports" className="space-y-6">
@@ -659,9 +745,9 @@ export default function Dashboard() {
         <Dialog open={showProjectModal} onOpenChange={setShowProjectModal}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
+              <DialogTitle>{editingProject ? 'Edit Project' : 'Create New Project'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={createProject} className="space-y-4">
+            <form onSubmit={editingProject ? updateProject : createProject} className="space-y-4">
               <Input
                 placeholder="Project name"
                 value={projectForm.name}
@@ -675,7 +761,7 @@ export default function Dashboard() {
               />
               <div className="flex space-x-2">
                 <Button type="submit" className="flex-1">
-                  Create Project
+                  {editingProject ? 'Update Project' : 'Create Project'}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setShowProjectModal(false)}>
                   Cancel
