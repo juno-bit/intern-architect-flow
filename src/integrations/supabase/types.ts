@@ -99,6 +99,13 @@ export type Database = {
             referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "images_uploaded_by_profiles_user_id_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       notifications: {
