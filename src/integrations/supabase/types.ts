@@ -52,35 +52,59 @@ export type Database = {
       }
       images: {
         Row: {
+          capture_date: string | null
           created_at: string
+          description: string | null
+          file_path: string | null
           file_size: number | null
           id: string
+          image_category: string | null
+          is_featured: boolean | null
           mime_type: string | null
           name: string
+          phase: string | null
           project_id: string | null
+          sort_order: number | null
           task_id: string | null
+          thumbnail_url: string | null
           uploaded_by: string
           url: string
         }
         Insert: {
+          capture_date?: string | null
           created_at?: string
+          description?: string | null
+          file_path?: string | null
           file_size?: number | null
           id?: string
+          image_category?: string | null
+          is_featured?: boolean | null
           mime_type?: string | null
           name: string
+          phase?: string | null
           project_id?: string | null
+          sort_order?: number | null
           task_id?: string | null
+          thumbnail_url?: string | null
           uploaded_by: string
           url: string
         }
         Update: {
+          capture_date?: string | null
           created_at?: string
+          description?: string | null
+          file_path?: string | null
           file_size?: number | null
           id?: string
+          image_category?: string | null
+          is_featured?: boolean | null
           mime_type?: string | null
           name?: string
+          phase?: string | null
           project_id?: string | null
+          sort_order?: number | null
           task_id?: string | null
+          thumbnail_url?: string | null
           uploaded_by?: string
           url?: string
         }
@@ -195,42 +219,130 @@ export type Database = {
         }
         Relationships: []
       }
+      project_galleries: {
+        Row: {
+          cover_image_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_public: boolean | null
+          name: string
+          project_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          cover_image_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name: string
+          project_id: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cover_image_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name?: string
+          project_id?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_galleries_cover_image_id_fkey"
+            columns: ["cover_image_id"]
+            isOneToOne: false
+            referencedRelation: "images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_galleries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "project_galleries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
+          actual_completion_date: string | null
           budget: number | null
           client_id: string | null
           created_at: string
           created_by: string
           description: string | null
+          detailed_description: string | null
           end_date: string | null
+          estimated_completion_date: string | null
+          floor_area: number | null
           id: string
+          location: string | null
+          lot_area: number | null
           name: string
+          phase: string | null
+          project_manager: string | null
+          project_type: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           updated_at: string
         }
         Insert: {
+          actual_completion_date?: string | null
           budget?: number | null
           client_id?: string | null
           created_at?: string
           created_by: string
           description?: string | null
+          detailed_description?: string | null
           end_date?: string | null
+          estimated_completion_date?: string | null
+          floor_area?: number | null
           id?: string
+          location?: string | null
+          lot_area?: number | null
           name: string
+          phase?: string | null
+          project_manager?: string | null
+          project_type?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
         }
         Update: {
+          actual_completion_date?: string | null
           budget?: number | null
           client_id?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
+          detailed_description?: string | null
           end_date?: string | null
+          estimated_completion_date?: string | null
+          floor_area?: number | null
           id?: string
+          location?: string | null
+          lot_area?: number | null
           name?: string
+          phase?: string | null
+          project_manager?: string | null
+          project_type?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
@@ -241,6 +353,74 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_project_manager_fkey"
+            columns: ["project_manager"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      task_clearances: {
+        Row: {
+          cleared_at: string | null
+          cleared_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          requested_at: string
+          requested_by: string
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          cleared_at?: string | null
+          cleared_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          requested_by: string
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          cleared_at?: string | null
+          cleared_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_clearances_cleared_by_fkey"
+            columns: ["cleared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "task_clearances_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "task_clearances_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -285,44 +465,65 @@ export type Database = {
       }
       tasks: {
         Row: {
+          actual_hours: number | null
           assigned_to: string | null
+          clearance_status: string | null
+          cleared_at: string | null
+          cleared_by: string | null
           completed_at: string | null
           created_at: string
           created_by: string
           description: string | null
           due_date: string | null
+          estimated_hours: number | null
           id: string
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          self_assigned: boolean | null
           status: Database["public"]["Enums"]["task_status"]
+          task_phase: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          actual_hours?: number | null
           assigned_to?: string | null
+          clearance_status?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by: string
           description?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          self_assigned?: boolean | null
           status?: Database["public"]["Enums"]["task_status"]
+          task_phase?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          actual_hours?: number | null
           assigned_to?: string | null
+          clearance_status?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          self_assigned?: boolean | null
           status?: Database["public"]["Enums"]["task_status"]
+          task_phase?: string | null
           title?: string
           updated_at?: string
         }
@@ -330,6 +531,13 @@ export type Database = {
           {
             foreignKeyName: "tasks_assigned_to_fkey"
             columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tasks_cleared_by_fkey"
+            columns: ["cleared_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
@@ -348,6 +556,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_assignable_users: {
+        Args: { requester_uuid: string }
+        Returns: {
+          full_name: string
+          role: string
+          user_id: string
+        }[]
+      }
+      get_user_assignable_projects: {
+        Args: { user_uuid: string }
+        Returns: {
+          project_id: string
+          project_name: string
+        }[]
+      }
       get_user_role: {
         Args: { user_uuid: string }
         Returns: string
