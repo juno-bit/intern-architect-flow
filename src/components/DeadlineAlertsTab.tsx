@@ -110,8 +110,8 @@ export default function DeadlineAlertsTab({ userId, userRole }: DeadlineAlertsTa
 
       if (upcomingError) throw upcomingError;
 
-      setOverdueTasks(overdueData || []);
-      setUpcomingTasks(upcomingData || []);
+      setOverdueTasks((overdueData || []) as unknown as Task[]);
+      setUpcomingTasks((upcomingData || []) as unknown as Task[]);
     } catch (error) {
       console.error('Error fetching deadline tasks:', error);
       toast.error('Error loading deadline tasks');

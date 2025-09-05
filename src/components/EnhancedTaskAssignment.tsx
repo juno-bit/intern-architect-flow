@@ -1,0 +1,580 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { Plus, CheckCircle, Clock, AlertTriangle, User, FolderOpen } from "lucide-react";
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  due_date?: string;
+  assigned_to?: string;
+  created_by: string;
+  project_id?: string;
+  clearance_status?: string;
+  cleared_by?: string;
+  cleared_at?: string;
+  self_assigned?: boolean;
+  estimated_hours?: number;
+  actual_hours?: number;
+  task_phase?: string;
+  created_at: string;
+  profiles?: { full_name: string; email: string };
+  projects?: { name: string };
+}
+
+interface TaskClearance {
+  id: string;
+  task_id: string;
+  requested_by: string;
+  cleared_by?: string;
+  status: string;
+  notes?: string;
+  requested_at: string;
+  cleared_at?: string;
+  tasks?: { title: string };
+  requester?: { full_name: string };
+}
+
+interface Project {
+  id: string;
+  name: string;
+}
+
+interface User {
+  user_id: string;
+  full_name: string;
+  role: string;
+}
+
+interface EnhancedTaskAssignmentProps {
+  userId: string;
+  userRole: string;
+}
+
+export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignmentProps) => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [clearances, setClearances] = useState<TaskClearance[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: "",
+    description: "",
+    priority: "medium",
+    due_date: "",
+    project_id: "",
+    assigned_to: "",
+    estimated_hours: "",
+    task_phase: "",
+    self_assigned: false
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, [userId]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchTasks(),
+        fetchClearances(),
+        fetchProjects(),
+        fetchAssignableUsers()
+      ]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      let query = supabase
+        .from("tasks")
+        .select(`
+          *,
+          profiles:assigned_to(full_name, email),
+          projects:project_id(name)
+        `)
+        .order("created_at", { ascending: false });
+
+      // Filter based on user role
+      if (userRole === "intern") {
+        query = query.eq("assigned_to", userId);
+      } else if (userRole === "junior_architect") {
+        query = query.or(`assigned_to.eq.${userId},created_by.eq.${userId}`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setTasks((data || []) as unknown as Task[]);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
+
+  const fetchClearances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("task_clearances")
+        .select(`
+          *,
+          tasks:task_id(title),
+          requester:requested_by(full_name)
+        `)
+        .order("requested_at", { ascending: false });
+
+      if (error) throw error;
+      setClearances((data || []) as unknown as TaskClearance[]);
+    } catch (error) {
+      console.error("Error fetching clearances:", error);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_user_assignable_projects", {
+        user_uuid: userId
+      });
+
+      if (error) throw error;
+      setProjects((data || []).map(p => ({ id: p.project_id, name: p.project_name })));
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
+
+  const fetchAssignableUsers = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_assignable_users", {
+        requester_uuid: userId
+      });
+
+      if (error) throw error;
+      setAssignableUsers(data || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    try {
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority as "low" | "medium" | "high" | "urgent",
+        due_date: newTask.due_date || null,
+        project_id: newTask.project_id || null,
+        assigned_to: newTask.assigned_to === "self" ? userId : newTask.assigned_to || null,
+        created_by: userId,
+        estimated_hours: newTask.estimated_hours ? parseFloat(newTask.estimated_hours) : null,
+        task_phase: newTask.task_phase || null,
+        self_assigned: newTask.assigned_to === "self" || newTask.self_assigned
+      };
+
+      const { error } = await supabase.from("tasks").insert(taskData);
+      if (error) throw error;
+
+      toast.success("Task created successfully!");
+      setShowCreateDialog(false);
+      setNewTask({
+        title: "",
+        description: "",
+        priority: "medium",
+        due_date: "",
+        project_id: "",
+        assigned_to: "",
+        estimated_hours: "",
+        task_phase: "",
+        self_assigned: false
+      });
+      fetchTasks();
+    } catch (error: any) {
+      console.error("Error creating task:", error);
+      toast.error("Failed to create task: " + error.message);
+    }
+  };
+
+  const handleRequestClearance = async (taskId: string) => {
+    try {
+      const { error } = await supabase.from("task_clearances").insert({
+        task_id: taskId,
+        requested_by: userId,
+        status: "pending"
+      });
+
+      if (error) throw error;
+      toast.success("Clearance requested successfully!");
+      fetchClearances();
+    } catch (error: any) {
+      console.error("Error requesting clearance:", error);
+      toast.error("Failed to request clearance: " + error.message);
+    }
+  };
+
+  const handleClearanceAction = async (clearanceId: string, action: "approve" | "reject", notes?: string) => {
+    try {
+      const { error } = await supabase
+        .from("task_clearances")
+        .update({
+          status: action === "approve" ? "approved" : "rejected",
+          cleared_by: userId,
+          cleared_at: new Date().toISOString(),
+          notes: notes
+        })
+        .eq("id", clearanceId);
+
+      if (error) throw error;
+      toast.success(`Clearance ${action}d successfully!`);
+      fetchClearances();
+    } catch (error: any) {
+      console.error("Error updating clearance:", error);
+      toast.error("Failed to update clearance: " + error.message);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      pending: "bg-yellow-500",
+      in_progress: "bg-blue-500",
+      completed: "bg-green-500",
+      overdue: "bg-red-500"
+    };
+    return colors[status as keyof typeof colors] || "bg-gray-500";
+  };
+
+  const getPriorityColor = (priority: string) => {
+    const colors = {
+      low: "bg-green-500",
+      medium: "bg-yellow-500",
+      high: "bg-orange-500",
+      urgent: "bg-red-500"
+    };
+    return colors[priority as keyof typeof colors] || "bg-gray-500";
+  };
+
+  const canCreateTasks = userRole === "chief_architect" || userRole === "junior_architect";
+  const canManageClearances = userRole === "chief_architect";
+
+  const myTasks = tasks.filter(task => task.assigned_to === userId);
+  const createdTasks = tasks.filter(task => task.created_by === userId);
+  const pendingClearances = clearances.filter(clearance => clearance.status === "pending");
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Enhanced Task Management</h2>
+        {canCreateTasks && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Task
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Task title"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                />
+                <Textarea
+                  placeholder="Task description"
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Select value={newTask.priority} onValueChange={(value) => setNewTask({ ...newTask, priority: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select value={newTask.project_id} onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={newTask.assigned_to} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Assign to" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="self">Self</SelectItem>
+                      {assignableUsers.map((user) => (
+                        <SelectItem key={user.user_id} value={user.user_id}>
+                          {user.full_name} ({user.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    placeholder="Estimated hours"
+                    type="number"
+                    value={newTask.estimated_hours}
+                    onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Task phase"
+                    value={newTask.task_phase}
+                    onChange={(e) => setNewTask({ ...newTask, task_phase: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateTask}>Create Task</Button>
+                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <Tabs defaultValue="my-tasks" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
+          <TabsTrigger value="created-tasks">Created Tasks</TabsTrigger>
+          <TabsTrigger value="clearances">Clearances</TabsTrigger>
+          <TabsTrigger value="available-tasks">Available Tasks</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="my-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">My Assigned Tasks</h3>
+          {myTasks.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No tasks assigned to you yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {myTasks.map((task) => (
+                <Card key={task.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{task.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
+                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          {task.projects?.name && (
+                            <Badge variant="outline">{task.projects.name}</Badge>
+                          )}
+                          {task.self_assigned && (
+                            <Badge variant="secondary">Self-assigned</Badge>
+                          )}
+                        </div>
+                        {task.due_date && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Due: {new Date(task.due_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRequestClearance(task.id)}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Request Clearance
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="created-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">Tasks I Created</h3>
+          {createdTasks.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">You haven't created any tasks yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {createdTasks.map((task) => (
+                <Card key={task.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{task.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
+                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          {task.projects?.name && (
+                            <Badge variant="outline">{task.projects.name}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Assigned to: {task.profiles?.full_name || "Unassigned"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="clearances" className="space-y-4">
+          <h3 className="text-lg font-semibold">Task Clearances</h3>
+          {pendingClearances.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No pending clearances.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {pendingClearances.map((clearance) => (
+                <Card key={clearance.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{clearance.tasks?.title}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Requested by: {clearance.requester?.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(clearance.requested_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {canManageClearances && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleClearanceAction(clearance.id, "approve")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleClearanceAction(clearance.id, "reject")}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="available-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">Available Tasks for Self-Assignment</h3>
+          {tasks.filter(task => !task.assigned_to).length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No available tasks for self-assignment.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {tasks.filter(task => !task.assigned_to).map((task) => (
+                <Card key={task.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{task.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          {task.projects?.name && (
+                            <Badge variant="outline">{task.projects.name}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from("tasks")
+                              .update({ assigned_to: userId, self_assigned: true })
+                              .eq("id", task.id);
+                            
+                            if (error) throw error;
+                            toast.success("Task self-assigned successfully!");
+                            fetchTasks();
+                          } catch (error: any) {
+                            toast.error("Failed to self-assign task: " + error.message);
+                          }
+                        }}
+                      >
+                        Self-Assign
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};

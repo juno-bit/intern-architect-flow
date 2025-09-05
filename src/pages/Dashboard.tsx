@@ -13,6 +13,8 @@ import { Upload, Plus, Edit2, Trash2, Calendar, User, AlertCircle, Table, Bell }
 import { toast } from 'sonner';
 import TasksTable from '@/components/TasksTable';
 import DeadlineAlertsTab from '@/components/DeadlineAlertsTab';
+import { ProjectGallery } from '@/components/ProjectGallery';
+import { EnhancedTaskAssignment } from '@/components/EnhancedTaskAssignment';
 
 interface Task {
   id: string;
@@ -115,7 +117,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTasks(data || []);
+      setTasks((data || []) as unknown as Task[]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast.error('Error loading tasks');
@@ -398,8 +400,10 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+            <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
+            <TabsTrigger value="gallery">Gallery</TabsTrigger>
             {profile?.role === 'chief_architect' && (
               <>
                 <TabsTrigger value="manage-tasks">Manage Tasks</TabsTrigger>
