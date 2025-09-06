@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AlertTriangle, Bell, Calendar, Clock, Send, CheckCircle, XCircle } from 'lucide-react';
+import DeadlineAlertForm from './DeadlineAlertForm';
+import ImageUploadForm from './ImageUploadForm';
 
 interface Notification {
   id: string;
@@ -191,18 +193,26 @@ export default function DeadlineAlertsTab({ userId, userRole }: DeadlineAlertsTa
 
   return (
     <div className="space-y-6">
-      {/* Header with send notifications button */}
-      {userRole === 'chief_architect' && (
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Deadline Alerts & Notifications</h2>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Deadline Alerts & Notifications</h2>
+        {userRole === 'chief_architect' && (
           <Button 
             onClick={sendDeadlineNotifications} 
             disabled={sending}
             className="bg-primary hover:bg-primary/90"
           >
             <Send className="h-4 w-4 mr-2" />
-            {sending ? 'Sending...' : 'Send Deadline Alerts'}
+            {sending ? 'Sending...' : 'Send All Alerts'}
           </Button>
+        )}
+      </div>
+
+      {/* Alert Forms */}
+      {userRole === 'chief_architect' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DeadlineAlertForm userId={userId} userRole={userRole} />
+          <ImageUploadForm userId={userId} />
         </div>
       )}
 

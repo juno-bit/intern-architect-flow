@@ -40,6 +40,8 @@ interface Project {
   name: string;
   description: string;
   status: string;
+  start_date?: string;
+  estimated_completion_date?: string;
   client_id?: string;
   clients?: {
     name: string;
@@ -72,7 +74,9 @@ export default function Dashboard() {
   });
   const [projectForm, setProjectForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    start_date: '',
+    estimated_completion_date: ''
   });
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
@@ -250,7 +254,7 @@ export default function Dashboard() {
       
       setShowProjectModal(false);
       setEditingProject(null);
-      setProjectForm({ name: '', description: '' });
+      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '' });
       fetchProjects();
       toast.success('Project created successfully');
     } catch (error) {
@@ -273,7 +277,7 @@ export default function Dashboard() {
       
       setShowProjectModal(false);
       setEditingProject(null);
-      setProjectForm({ name: '', description: '' });
+      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '' });
       fetchProjects();
       toast.success('Project updated successfully');
     } catch (error) {
@@ -303,7 +307,9 @@ export default function Dashboard() {
     setEditingProject(project);
     setProjectForm({
       name: project.name,
-      description: project.description || ''
+      description: project.description || '',
+      start_date: project.start_date || '',
+      estimated_completion_date: project.estimated_completion_date || ''
     });
     setShowProjectModal(true);
   };
@@ -763,6 +769,24 @@ export default function Dashboard() {
                 value={projectForm.description}
                 onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Start Date</label>
+                  <Input
+                    type="date"
+                    value={projectForm.start_date || ''}
+                    onChange={(e) => setProjectForm({ ...projectForm, start_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Expected Completion</label>
+                  <Input
+                    type="date"
+                    value={projectForm.estimated_completion_date || ''}
+                    onChange={(e) => setProjectForm({ ...projectForm, estimated_completion_date: e.target.value })}
+                  />
+                </div>
+              </div>
               <div className="flex space-x-2">
                 <Button type="submit" className="flex-1">
                   {editingProject ? 'Update Project' : 'Create Project'}
