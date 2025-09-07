@@ -9,12 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Plus, Edit2, Trash2, Calendar, User, AlertCircle, Table, Bell } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, User, AlertCircle, Table, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import TasksTable from '@/components/TasksTable';
 import DeadlineAlertsTab from '@/components/DeadlineAlertsTab';
 import { ProjectGallery } from '@/components/ProjectGallery';
 import { EnhancedTaskAssignment } from '@/components/EnhancedTaskAssignment';
+import ImageUploadForm from '@/components/ImageUploadForm';
 
 interface Task {
   id: string;
@@ -365,10 +366,6 @@ export default function Dashboard() {
     }
   };
 
-  const filteredTasks = profile?.role === 'chief_architect' 
-    ? tasks 
-    : tasks.filter(task => task.assigned_to === user?.id);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -405,14 +402,12 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-        <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+        <Tabs defaultValue="enhanced-tasks" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             {profile?.role === 'chief_architect' && (
               <>
-                <TabsTrigger value="manage-tasks">Manage Tasks</TabsTrigger>
                 <TabsTrigger value="all-tasks">All Tasks Table</TabsTrigger>
                 <TabsTrigger value="projects">Projects</TabsTrigger>
                 <TabsTrigger value="alerts">Deadline Alerts</TabsTrigger>
@@ -421,156 +416,27 @@ export default function Dashboard() {
             )}
           </TabsList>
 
-          <TabsContent value="tasks" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Your Assigned Tasks</h2>
-              <Button onClick={() => window.location.href = '/gallery'} variant="outline">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Images
-              </Button>
-            </div>
+          <TabsContent value="enhanced-tasks" className="space-y-6">
+            <EnhancedTaskAssignment userId={user?.id || ''} userRole={profile?.role || ''} />
+          </TabsContent>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTasks.map((task) => (
-                <Card key={task.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{task.title}</CardTitle>
-                      <div className="flex space-x-1">
-                        <Badge className={`${getStatusColor(task.status)} text-white`}>
-                          {task.status.replace('_', ' ')}
-                        </Badge>
-                        <Badge className={`${getPriorityColor(task.priority)} text-white`}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {task.description && (
-                      <p className="text-muted-foreground text-sm">{task.description}</p>
-                    )}
-                    
-                    <div className="space-y-2 text-sm">
-                      {task.projects?.name && (
-                        <div className="flex items-center text-muted-foreground">
-                          <span className="font-medium">Project:</span>
-                          <span className="ml-2">{task.projects.name}</span>
-                        </div>
-                      )}
-                      
-                      {task.due_date && (
-                        <div className="flex items-center text-muted-foreground">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                      
-                      {task.profiles && (
-                        <div className="flex items-center text-muted-foreground">
-                          <User className="h-4 w-4 mr-2" />
-                          <span>Assigned to: {task.profiles.full_name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {profile?.role !== 'chief_architect' && task.assigned_to === user?.id && (
-                      <div className="flex space-x-2 pt-2">
-                        <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value as Task['status'])}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+          <TabsContent value="gallery" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <ImageUploadForm userId={user?.id || ''} onUploadComplete={() => window.location.reload()} />
+              </div>
+              <div className="lg:col-span-2">
+                <ProjectGallery 
+                  projectId="" 
+                  userId={user?.id || ''} 
+                  userRole={profile?.role || ''} 
+                />
+              </div>
             </div>
           </TabsContent>
 
           {profile?.role === 'chief_architect' && (
             <>
-              <TabsContent value="manage-tasks" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Task Management</h2>
-                  <Button onClick={() => setShowTaskModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Task
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tasks.map((task) => (
-                    <Card key={task.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{task.title}</CardTitle>
-                          <div className="flex space-x-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditTask(task)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteTask(task.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex space-x-2">
-                          <Badge className={`${getStatusColor(task.status)} text-white`}>
-                            {task.status.replace('_', ' ')}
-                          </Badge>
-                          <Badge className={`${getPriorityColor(task.priority)} text-white`}>
-                            {task.priority}
-                          </Badge>
-                        </div>
-                        
-                        {task.description && (
-                          <p className="text-muted-foreground text-sm">{task.description}</p>
-                        )}
-                        
-                        <div className="space-y-2 text-sm">
-                          {task.projects?.name && (
-                            <div className="flex items-center text-muted-foreground">
-                              <span className="font-medium">Project:</span>
-                              <span className="ml-2">{task.projects.name}</span>
-                            </div>
-                          )}
-                          
-                          {task.due_date && (
-                            <div className="flex items-center text-muted-foreground">
-                              <Calendar className="h-4 w-4 mr-2" />
-                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                          
-                          {task.profiles && (
-                            <div className="flex items-center text-muted-foreground">
-                              <User className="h-4 w-4 mr-2" />
-                              <span>Assigned to: {task.profiles.full_name}</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
               <TabsContent value="all-tasks" className="space-y-6">
                 <TasksTable 
                   tasks={tasks}
@@ -697,7 +563,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -716,7 +582,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Assign to" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {teamMembers.map((member) => (
                     <SelectItem key={member.user_id} value={member.user_id}>
                       {member.full_name} ({member.role})
@@ -731,7 +597,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

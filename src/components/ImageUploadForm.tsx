@@ -246,7 +246,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                   <SelectTrigger>
                     <SelectValue placeholder="Link to task (optional)" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border border-border z-50">
                     {filteredTasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         {task.title}
@@ -283,7 +283,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Project phase (optional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {phases.map((phase) => (
                     <SelectItem key={phase} value={phase}>
                       {phase}
@@ -299,7 +299,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Image category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {imageCategories.map((category) => (
                     <SelectItem key={category.value} value={category.value}>
                       <div className="flex items-center gap-2">

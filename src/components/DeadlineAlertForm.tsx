@@ -176,7 +176,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                   <SelectTrigger>
                     <SelectValue placeholder="Select task" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border border-border z-50">
                     {filteredTasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         {task.title}
@@ -242,7 +242,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignee *" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   {users.map((user) => (
                     <SelectItem key={user.user_id} value={user.user_id}>
                       <div className="flex items-center gap-2">
