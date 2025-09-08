@@ -414,6 +414,11 @@ export default function Dashboard() {
                 <TabsTrigger value="reports">Reports</TabsTrigger>
               </>
             )}
+            {(profile?.role === 'junior_architect' || profile?.role === 'intern') && (
+              <>
+                <TabsTrigger value="projects">Projects</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="enhanced-tasks" className="space-y-6">

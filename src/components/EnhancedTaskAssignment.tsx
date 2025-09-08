@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, CheckCircle, Clock, AlertTriangle, User, FolderOpen } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, User, FolderOpen, MessageSquare } from "lucide-react";
+import { ClearanceRequestForm } from "./ClearanceRequestForm";
 
 interface Task {
   id: string;
@@ -28,6 +29,7 @@ interface Task {
   estimated_hours?: number;
   actual_hours?: number;
   task_phase?: string;
+  completed_at?: string;
   created_at: string;
   profiles?: { full_name: string; email: string };
   projects?: { name: string };
@@ -273,6 +275,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
 
   const myTasks = tasks.filter(task => task.assigned_to === userId);
   const createdTasks = tasks.filter(task => task.created_by === userId);
+  const completedTasks = tasks.filter(task => task.status === "completed");
+  const availableTasks = tasks.filter(task => !task.assigned_to && userRole === "intern");
   const pendingClearances = clearances.filter(clearance => clearance.status === "pending");
 
   if (loading) {
@@ -286,7 +290,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         {canCreateTasks && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="bg-green-500 hover:bg-green-600 text-white">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
@@ -365,7 +369,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleCreateTask}>Create Task</Button>
+                  <Button onClick={handleCreateTask} className="bg-green-500 hover:bg-green-600 text-white">Create Task</Button>
                   <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                     Cancel
                   </Button>
@@ -377,11 +381,12 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
       </div>
 
       <Tabs defaultValue="my-tasks" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${userRole === "intern" ? "grid-cols-4" : "grid-cols-5"}`}>
           <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
-          <TabsTrigger value="created-tasks">Created Tasks</TabsTrigger>
+          {userRole !== "intern" && <TabsTrigger value="created-tasks">Created Tasks</TabsTrigger>}
           <TabsTrigger value="clearances">Clearances</TabsTrigger>
-          <TabsTrigger value="available-tasks">Available Tasks</TabsTrigger>
+          <TabsTrigger value="available-tasks">{userRole === "intern" ? "Available Tasks" : "All Tasks"}</TabsTrigger>
+          <TabsTrigger value="completed-tasks">Completed Tasks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="my-tasks" className="space-y-4">
@@ -403,8 +408,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                         <h4 className="font-semibold">{task.title}</h4>
                         <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
                         <div className="flex gap-2 mt-3">
-                          <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
-                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          <Badge className={`${getStatusColor(task.status)} text-white`}>{task.status}</Badge>
+                          <Badge className={`${getPriorityColor(task.priority)} text-white`}>{task.priority}</Badge>
                           {task.projects?.name && (
                             <Badge variant="outline">{task.projects.name}</Badge>
                           )}
@@ -421,7 +426,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          variant="outline"
+                          className="bg-green-500 hover:bg-green-600 text-white"
                           onClick={() => handleRequestClearance(task.id)}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
@@ -436,18 +441,153 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
           )}
         </TabsContent>
 
-        <TabsContent value="created-tasks" className="space-y-4">
-          <h3 className="text-lg font-semibold">Tasks I Created</h3>
-          {createdTasks.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">You haven't created any tasks yet.</p>
-              </CardContent>
-            </Card>
+        {userRole !== "intern" && (
+          <TabsContent value="created-tasks" className="space-y-4">
+            <h3 className="text-lg font-semibold">Tasks I Created</h3>
+            {createdTasks.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">You haven't created any tasks yet.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {createdTasks.map((task) => (
+                  <Card key={task.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{task.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                          <div className="flex gap-2 mt-3">
+                            <Badge className={`${getStatusColor(task.status)} text-white`}>{task.status}</Badge>
+                            <Badge className={`${getPriorityColor(task.priority)} text-white`}>{task.priority}</Badge>
+                            {task.projects?.name && (
+                              <Badge variant="outline">{task.projects.name}</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Assigned to: {task.profiles?.full_name || "Unassigned"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
+        <TabsContent value="clearances" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Task Clearances</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <ClearanceRequestForm userId={userId} userRole={userRole} />
+            </div>
+            <div className="lg:col-span-2 space-y-4">
+              {pendingClearances.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No pending clearances.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {pendingClearances.map((clearance) => (
+                    <Card key={clearance.id}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{clearance.tasks?.title}</h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Requested by: {clearance.requester?.full_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Notes: {clearance.notes || "No notes provided"}
+                            </p>
+                            <Badge className="bg-yellow-500 text-white mt-2">{clearance.status}</Badge>
+                          </div>
+                          {canManageClearances && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                                onClick={() => handleClearanceAction(clearance.id, "approve")}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleClearanceAction(clearance.id, "reject")}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="available-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">
+            {userRole === "intern" ? "Available Tasks for Self-Assignment" : "All Tasks Overview"}
+          </h3>
+          {userRole === "intern" ? (
+            availableTasks.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No available tasks for self-assignment.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {availableTasks.map((task) => (
+                  <Card key={task.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{task.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                          <div className="flex gap-2 mt-3">
+                            <Badge className={`${getStatusColor(task.status)} text-white`}>{task.status}</Badge>
+                            <Badge className={`${getPriorityColor(task.priority)} text-white`}>{task.priority}</Badge>
+                            {task.projects?.name && (
+                              <Badge variant="outline">{task.projects.name}</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-green-500 hover:bg-green-600 text-white"
+                          onClick={() => {
+                            toast.success("Feature coming soon!");
+                          }}
+                        >
+                          Self-Assign
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
           ) : (
             <div className="grid gap-4">
-              {createdTasks.map((task) => (
+              {tasks.slice(0, 10).map((task) => (
                 <Card key={task.id}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
@@ -455,8 +595,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                         <h4 className="font-semibold">{task.title}</h4>
                         <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
                         <div className="flex gap-2 mt-3">
-                          <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
-                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          <Badge className={`${getStatusColor(task.status)} text-white`}>{task.status}</Badge>
+                          <Badge className={`${getPriorityColor(task.priority)} text-white`}>{task.priority}</Badge>
                           {task.projects?.name && (
                             <Badge variant="outline">{task.projects.name}</Badge>
                           )}
@@ -473,68 +613,18 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
           )}
         </TabsContent>
 
-        <TabsContent value="clearances" className="space-y-4">
-          <h3 className="text-lg font-semibold">Task Clearances</h3>
-          {pendingClearances.length === 0 ? (
+        <TabsContent value="completed-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">Completed Tasks</h3>
+          {completedTasks.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No pending clearances.</p>
+                <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No completed tasks yet.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {pendingClearances.map((clearance) => (
-                <Card key={clearance.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{clearance.tasks?.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Requested by: {clearance.requester?.full_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(clearance.requested_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {canManageClearances && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleClearanceAction(clearance.id, "approve")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleClearanceAction(clearance.id, "reject")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="available-tasks" className="space-y-4">
-          <h3 className="text-lg font-semibold">Available Tasks for Self-Assignment</h3>
-          {tasks.filter(task => !task.assigned_to).length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No available tasks for self-assignment.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {tasks.filter(task => !task.assigned_to).map((task) => (
+              {completedTasks.map((task) => (
                 <Card key={task.id}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
@@ -542,31 +632,25 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                         <h4 className="font-semibold">{task.title}</h4>
                         <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
                         <div className="flex gap-2 mt-3">
-                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          <Badge className="bg-green-500 text-white">completed</Badge>
+                          <Badge className={`${getPriorityColor(task.priority)} text-white`}>{task.priority}</Badge>
                           {task.projects?.name && (
                             <Badge variant="outline">{task.projects.name}</Badge>
                           )}
+                          {task.cleared_at && (
+                            <Badge className="bg-green-500 text-white">Cleared</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                          <p>Assigned to: {task.profiles?.full_name || "Unassigned"}</p>
+                          {task.completed_at && (
+                            <p>Completed: {new Date(task.completed_at).toLocaleDateString()}</p>
+                          )}
+                          {task.cleared_at && (
+                            <p>Cleared: {new Date(task.cleared_at).toLocaleDateString()}</p>
+                          )}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from("tasks")
-                              .update({ assigned_to: userId, self_assigned: true })
-                              .eq("id", task.id);
-                            
-                            if (error) throw error;
-                            toast.success("Task self-assigned successfully!");
-                            fetchTasks();
-                          } catch (error: any) {
-                            toast.error("Failed to self-assign task: " + error.message);
-                          }
-                        }}
-                      >
-                        Self-Assign
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

@@ -34,7 +34,6 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
   const [imageForm, setImageForm] = useState({
     description: '',
     project_id: '',
-    task_id: '',
     phase: '',
     image_category: 'progress',
     capture_date: new Date().toISOString().split('T')[0],
@@ -132,7 +131,6 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
           file_path: filePath,
           description: imageForm.description,
           project_id: imageForm.project_id || null,
-          task_id: imageForm.task_id || null,
           phase: imageForm.phase || null,
           image_category: imageForm.image_category,
           capture_date: imageForm.capture_date,
@@ -151,7 +149,6 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
       setImageForm({
         description: '',
         project_id: '',
-        task_id: '',
         phase: '',
         image_category: 'progress',
         capture_date: new Date().toISOString().split('T')[0],
@@ -241,7 +238,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
 
               <Select
                 value={imageForm.project_id}
-                onValueChange={(value) => setImageForm({ ...imageForm, project_id: value, task_id: '' })}
+                onValueChange={(value) => setImageForm({ ...imageForm, project_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
@@ -258,23 +255,6 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 </SelectContent>
               </Select>
 
-              {imageForm.project_id && (
-                <Select
-                  value={imageForm.task_id}
-                  onValueChange={(value) => setImageForm({ ...imageForm, task_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Link to task (optional)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border border-border z-50">
-                    {filteredTasks.map((task) => (
-                      <SelectItem key={task.id} value={task.id}>
-                        {task.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
 
               <Select
                 value={imageForm.phase}
