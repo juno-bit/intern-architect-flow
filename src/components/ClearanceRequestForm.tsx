@@ -157,13 +157,18 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   <label className="text-sm font-medium">Project (Optional)</label>
                   <Select
                     value={clearanceForm.project_id}
-                    onValueChange={(value) => setClearanceForm({ ...clearanceForm, project_id: value, task_id: '' })}
+                    onValueChange={(value) => {
+                      if (value === 'clear-filter') {
+                        setClearanceForm({ ...clearanceForm, project_id: '', task_id: '' });
+                      } else {
+                        setClearanceForm({ ...clearanceForm, project_id: value, task_id: '' });
+                      }
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Filter by project" />
+                      <SelectValue placeholder="Filter by project (optional)" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border border-border z-50">
-                      <SelectItem value="">All Projects</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
