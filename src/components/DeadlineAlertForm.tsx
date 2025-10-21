@@ -159,7 +159,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
       <CardContent>
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogTrigger asChild>
-            <Button className="w-full">
+            <Button variant="success" size="lg" className="w-full">
               <Send className="h-4 w-4 mr-2" />
               Create Deadline Alert
             </Button>
@@ -275,10 +275,10 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
               />
 
               <div className="flex space-x-2">
-                <Button type="submit" className="flex-1" disabled={sending}>
+                <Button type="submit" variant="success" size="lg" className="flex-1" disabled={sending}>
                   {sending ? 'Sending...' : 'Send Alert'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                <Button type="button" variant="outline" size="lg" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
               </div>

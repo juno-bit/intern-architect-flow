@@ -200,7 +200,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
       <CardContent>
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogTrigger asChild>
-            <Button className="w-full">
+            <Button variant="success" size="lg" className="w-full">
               <Upload className="h-4 w-4 mr-2" />
               Upload Image
             </Button>
@@ -316,10 +316,10 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
               </div>
 
               <div className="flex space-x-2">
-                <Button type="submit" className="flex-1" disabled={uploading}>
+                <Button type="submit" variant="success" size="lg" className="flex-1" disabled={uploading}>
                   {uploading ? 'Uploading...' : 'Upload Image'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                <Button type="button" variant="outline" size="lg" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
               </div>

@@ -290,7 +290,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         {canCreateTasks && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-green-500 hover:bg-green-600 text-white">
+              <Button variant="success" size="lg">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
@@ -369,8 +369,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleCreateTask} className="bg-green-500 hover:bg-green-600 text-white">Create Task</Button>
-                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  <Button onClick={handleCreateTask} variant="success" size="lg">Create Task</Button>
+                  <Button variant="outline" size="lg" onClick={() => setShowCreateDialog(false)}>
                     Cancel
                   </Button>
                 </div>
@@ -423,16 +423,18 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-500 hover:bg-green-600 text-white"
-                          onClick={() => handleRequestClearance(task.id)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Request Clearance
-                        </Button>
-                      </div>
+                      {userRole !== 'chief_architect' && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handleRequestClearance(task.id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Request Clearance
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -481,56 +483,59 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         )}
 
         <TabsContent value="clearances" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Task Clearances</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <ClearanceRequestForm userId={userId} userRole={userRole} />
-            </div>
-            <div className="lg:col-span-2 space-y-4">
+          {userRole === 'chief_architect' ? (
+            // Chief architects see only approval interface
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold">Pending Clearances to Review</h3>
               {pendingClearances.length === 0 ? (
-                <Card>
+                <Card className="rounded-xl">
                   <CardContent className="py-8 text-center">
                     <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No pending clearances.</p>
+                    <p className="text-muted-foreground">No pending clearances to review</p>
                   </CardContent>
                 </Card>
               ) : (
                 <div className="grid gap-4">
                   {pendingClearances.map((clearance) => (
-                    <Card key={clearance.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
+                    <Card key={clearance.id} className="hover:shadow-lg transition-all rounded-xl">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
                           <div className="flex-1">
-                            <h4 className="font-semibold">{clearance.tasks?.title}</h4>
+                            <h4 className="font-semibold text-lg">{clearance.tasks?.title}</h4>
                             <p className="text-sm text-muted-foreground mt-1">
                               Requested by: {clearance.requester?.full_name}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              Notes: {clearance.notes || "No notes provided"}
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(clearance.requested_at).toLocaleDateString()}
                             </p>
-                            <Badge className="bg-yellow-500 text-white mt-2">{clearance.status}</Badge>
                           </div>
-                          {canManageClearances && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="bg-green-500 hover:bg-green-600 text-white"
-                                onClick={() => handleClearanceAction(clearance.id, "approve")}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleClearanceAction(clearance.id, "reject")}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          <Badge className="bg-yellow-500 text-white rounded-lg px-3 py-1">
+                            {clearance.status}
+                          </Badge>
+                        </div>
+                        {clearance.notes && (
+                          <div className="mb-4 p-3 bg-muted rounded-lg">
+                            <p className="text-sm font-medium">Notes:</p>
+                            <p className="text-sm text-muted-foreground">{clearance.notes}</p>
+                          </div>
+                        )}
+                        <div className="flex gap-3">
+                          <Button
+                            variant="success"
+                            size="lg"
+                            className="flex-1"
+                            onClick={() => handleClearanceAction(clearance.id, "approve")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="lg"
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={() => handleClearanceAction(clearance.id, "reject")}
+                          >
+                            Reject
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -538,7 +543,48 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                 </div>
               )}
             </div>
-          </div>
+          ) : (
+            // Other roles see request form and their pending clearances
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ClearanceRequestForm userId={userId} userRole={userRole} />
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">My Pending Clearances</h3>
+                {clearances.filter(c => c.status === 'pending' && c.requested_by === userId).length === 0 ? (
+                  <Card className="rounded-xl">
+                    <CardContent className="py-8 text-center">
+                      <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No pending clearances</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  clearances.filter(c => c.status === 'pending' && c.requested_by === userId).map(clearance => (
+                    <Card key={clearance.id} className="hover:shadow-md transition-shadow rounded-xl">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{clearance.tasks?.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(clearance.requested_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge className="bg-yellow-500 text-white rounded-lg">
+                            {clearance.status}
+                          </Badge>
+                        </div>
+                        {clearance.notes && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-sm font-medium">Notes:</p>
+                            <p className="text-sm text-muted-foreground">{clearance.notes}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="available-tasks" className="space-y-4">
@@ -571,8 +617,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                           </div>
                         </div>
                         <Button
+                          variant="success"
                           size="sm"
-                          className="bg-green-500 hover:bg-green-600 text-white"
                           onClick={() => {
                             toast.success("Feature coming soon!");
                           }}

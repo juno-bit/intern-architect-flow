@@ -454,7 +454,7 @@ export default function Dashboard() {
               <TabsContent value="projects" className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Projects</h2>
-                  <Button onClick={() => setShowProjectModal(true)}>
+                  <Button variant="success" size="lg" onClick={() => setShowProjectModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Project
                   </Button>

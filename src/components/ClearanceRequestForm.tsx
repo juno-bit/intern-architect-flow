@@ -37,6 +37,11 @@ const urgencyLevels = [
 ];
 
 export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormProps) => {
+  // Chief architects don't request clearances - they only approve them
+  if (userRole === 'chief_architect') {
+    return null;
+  }
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -142,7 +147,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
       <CardContent>
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogTrigger asChild>
-            <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+            <Button variant="success" size="lg" className="w-full">
               <CheckCircle className="h-4 w-4 mr-2" />
               Request Clearance
             </Button>
@@ -297,14 +302,17 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
               <div className="flex gap-2">
                 <Button 
                   type="submit" 
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white" 
+                  variant="success"
+                  size="lg"
+                  className="flex-1" 
                   disabled={submitting}
                 >
                   {submitting ? 'Submitting...' : 'Submit Clearance Request'}
                 </Button>
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="outline"
+                  size="lg"
                   onClick={() => setShowForm(false)}
                   disabled={submitting}
                 >
