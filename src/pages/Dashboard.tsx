@@ -16,6 +16,7 @@ import DeadlineAlertsTab from '@/components/DeadlineAlertsTab';
 import { ProjectGallery } from '@/components/ProjectGallery';
 import { EnhancedTaskAssignment } from '@/components/EnhancedTaskAssignment';
 import ImageUploadForm from '@/components/ImageUploadForm';
+import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 
 interface Task {
   id: string;
@@ -452,57 +453,13 @@ export default function Dashboard() {
               </TabsContent>
 
               <TabsContent value="projects" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Projects</h2>
-                  <Button variant="success" size="lg" onClick={() => setShowProjectModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Project
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {projects.map((project) => (
-                    <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <CardTitle>{project.name}</CardTitle>
-                          <div className="flex space-x-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditProject(project)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteProject(project.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {project.description && (
-                          <p className="text-muted-foreground text-sm">{project.description}</p>
-                        )}
-                        
-                        <div className="space-y-2 text-sm">
-                          <Badge variant="outline">{project.status.replace('_', ' ')}</Badge>
-                          
-                          {project.clients?.name && (
-                            <div className="flex items-center text-muted-foreground">
-                              <span className="font-medium">Client:</span>
-                              <span className="ml-2">{project.clients.name}</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <EnhancedProjectsTab
+                  userId={user?.id || ''}
+                  userRole={profile?.role || ''}
+                  onEditProject={startEditProject}
+                  onDeleteProject={deleteProject}
+                  onCreateProject={() => setShowProjectModal(true)}
+                />
               </TabsContent>
 
               <TabsContent value="alerts" className="space-y-6">
