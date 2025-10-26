@@ -173,7 +173,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by project (optional)" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50">
+                    <SelectContent className="bg-background border border-border z-50 text-white">
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
@@ -192,7 +192,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50">
+                    <SelectContent className="bg-background border border-border z-50 text-white">
                       {urgencyLevels.map((level) => (
                         <SelectItem key={level.value} value={level.value}>
                           <div className="flex items-center gap-2">
@@ -215,7 +215,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a task to request clearance for" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border border-border z-50">
+                  <SelectContent className="bg-background border border-border z-50 text-white">
                     {filteredTasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         <div className="flex flex-col items-start">

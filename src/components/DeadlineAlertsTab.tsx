@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AlertTriangle, Bell, Calendar, Clock, Send, CheckCircle, XCircle } from 'lucide-react';
 import DeadlineAlertForm from './DeadlineAlertForm';
-import ImageUploadForm from './ImageUploadForm';
 
 interface Notification {
   id: string;
@@ -210,10 +209,7 @@ export default function DeadlineAlertsTab({ userId, userRole }: DeadlineAlertsTa
 
       {/* Alert Forms */}
       {userRole === 'chief_architect' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DeadlineAlertForm userId={userId} userRole={userRole} />
-          <ImageUploadForm userId={userId} />
-        </div>
+        <DeadlineAlertForm userId={userId} userRole={userRole} />
       )}
 
       {/* Summary Cards */}

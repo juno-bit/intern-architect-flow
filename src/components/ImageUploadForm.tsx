@@ -243,7 +243,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Project phase (optional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   {phases.map((phase) => (
                     <SelectItem key={phase} value={phase}>
                       {phase}
@@ -279,7 +279,7 @@ export default function ImageUploadForm({ userId, onUploadComplete }: ImageUploa
                 <SelectTrigger>
                   <SelectValue placeholder="Image category" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   {imageCategories.map((category) => (
                     <SelectItem key={category.value} value={category.value}>
                       <div className="flex items-center gap-2">

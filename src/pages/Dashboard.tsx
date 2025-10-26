@@ -525,7 +525,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -544,7 +544,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Assign to" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   {teamMembers.map((member) => (
                     <SelectItem key={member.user_id} value={member.user_id}>
                       {member.full_name} ({member.role})
@@ -559,7 +559,7 @@ export default function Dashboard() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
+                <SelectContent className="bg-background border border-border z-50 text-white">
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
