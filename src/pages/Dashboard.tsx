@@ -441,6 +441,16 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
+          <TabsContent value="projects" className="space-y-6">
+            <EnhancedProjectsTab
+              userId={user?.id || ''}
+              userRole={profile?.role || ''}
+              onEditProject={startEditProject}
+              onDeleteProject={deleteProject}
+              onCreateProject={() => setShowProjectModal(true)}
+            />
+          </TabsContent>
+
           {profile?.role === 'chief_architect' && (
             <>
               <TabsContent value="all-tasks" className="space-y-6">
@@ -449,16 +459,6 @@ export default function Dashboard() {
                   onEditTask={startEditTask}
                   onDeleteTask={deleteTask}
                   onUpdateStatus={updateTaskStatus}
-                />
-              </TabsContent>
-
-              <TabsContent value="projects" className="space-y-6">
-                <EnhancedProjectsTab
-                  userId={user?.id || ''}
-                  userRole={profile?.role || ''}
-                  onEditProject={startEditProject}
-                  onDeleteProject={deleteProject}
-                  onCreateProject={() => setShowProjectModal(true)}
                 />
               </TabsContent>
 

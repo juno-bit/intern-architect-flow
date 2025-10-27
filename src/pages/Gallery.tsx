@@ -231,7 +231,7 @@ export default function Gallery() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {images.map((image) => (
-            <Card key={image.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card key={image.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 rounded-xl">
               <div className="aspect-square relative overflow-hidden">
                 <img
                   src={image.url}
@@ -254,19 +254,19 @@ export default function Gallery() {
                 
                 <div className="space-y-2">
                   {image.projects?.name && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs bg-blue-500 text-white border-0">
                       {image.projects.name}
                     </Badge>
                   )}
                   
                   {image.tasks?.title && (
-                    <Badge variant="secondary" className="text-xs">
-                      Task: {image.tasks.title}
+                    <Badge variant="secondary" className="text-xs bg-purple-500 text-white">
+                      {image.tasks.title}
                     </Badge>
                   )}
                   
                   <div className="text-xs text-muted-foreground">
-                    Uploaded by: {image.profiles?.full_name || 'Unknown'}
+                    {image.profiles?.full_name || 'Unknown'}
                   </div>
                   
                   <div className="text-xs text-muted-foreground">

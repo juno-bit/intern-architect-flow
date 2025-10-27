@@ -67,13 +67,38 @@ export default function EnhancedProjectsTab({
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('projects')
         .select(`
           *,
           clients (name)
         `)
         .order('created_at', { ascending: false });
+
+      let data;
+      let error;
+
+      // Filter based on user role
+      if (userRole === 'chief_architect') {
+        // Chief architects see all projects
+        ({ data, error } = await query);
+      } else {
+        // Non-chief architects: filter by projects they're involved in via tasks
+        const { data: userTasks, error: tasksError } = await supabase
+          .from('tasks')
+          .select('project_id')
+          .or(`assigned_to.eq.${userId},created_by.eq.${userId}`);
+
+        if (tasksError) throw tasksError;
+
+        const projectIds = [...new Set(userTasks?.map(t => t.project_id).filter(Boolean))];
+        
+        if (projectIds.length > 0) {
+          ({ data, error } = await query.in('id', projectIds));
+        } else {
+          data = [];
+        }
+      }
 
       if (error) throw error;
       setProjects(data || []);
@@ -188,9 +213,13 @@ export default function EnhancedProjectsTab({
             <div className="rounded-full bg-primary/10 p-6 mb-4">
               <Folder className="h-12 w-12 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Projects Yet</h3>
+            <h3 className="text-xl font-semibold mb-2">
+              {userRole === 'chief_architect' ? 'No Projects Yet' : 'No Assigned Projects'}
+            </h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Get started by creating your first project to organize tasks, track progress, and manage your team effectively.
+              {userRole === 'chief_architect' 
+                ? 'Get started by creating your first project to organize tasks, track progress, and manage your team effectively.'
+                : 'You haven\'t been assigned to any projects yet. Ask your supervisor to assign you tasks on existing projects.'}
             </p>
             {userRole === 'chief_architect' && (
               <Button variant="success" size="lg" onClick={onCreateProject}>

@@ -422,7 +422,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredImages.map((image, index) => (
-            <Card key={image.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
+            <Card key={image.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 rounded-xl">
               <div className="relative">
                 <img
                   src={image.url}
@@ -464,16 +464,11 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
               </div>
               <CardContent className="p-3">
                 <h4 className="font-medium text-sm truncate">{image.name}</h4>
-                <div className="flex gap-1 mt-2">
-                  {image.phase && (
-                    <Badge variant="outline" className="text-xs">
-                      {image.phase}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="text-xs">
-                    {image.image_category}
+                {image.projects?.name && (
+                  <Badge variant="outline" className="text-xs mt-2 bg-blue-500 text-white border-0">
+                    {image.projects.name}
                   </Badge>
-                </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(image.capture_date).toLocaleDateString()}
                 </p>

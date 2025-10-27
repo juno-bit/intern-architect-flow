@@ -250,6 +250,25 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
     }
   };
 
+  const handleMarkComplete = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", taskId);
+
+      if (error) throw error;
+      toast.success("Task marked as complete!");
+      fetchTasks();
+    } catch (error: any) {
+      console.error("Error completing task:", error);
+      toast.error("Failed to mark task as complete: " + error.message);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors = {
       pending: "bg-yellow-500",
@@ -425,12 +444,21 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       </div>
                       {userRole !== 'chief_architect' && (
                         <div className="flex gap-2">
+                          {task.status !== 'completed' && (
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => handleMarkComplete(task.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Mark Complete
+                            </Button>
+                          )}
                           <Button
-                            variant="success"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleRequestClearance(task.id)}
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
                             Request Clearance
                           </Button>
                         </div>
