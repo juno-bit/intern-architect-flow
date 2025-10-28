@@ -269,10 +269,10 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Select Project" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border border-border z-50">
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
@@ -282,10 +282,10 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
             </Select>
 
             <Select value={selectedPhase} onValueChange={setSelectedPhase}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="All Phases" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border border-border z-50">
                 <SelectItem value="all">All Phases</SelectItem>
                 {phases.map((phase) => (
                   <SelectItem key={phase} value={phase}>
@@ -296,10 +296,10 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
             </Select>
 
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border border-border z-50">
                 <SelectItem value="all">All Categories</SelectItem>
                 {imageCategories.map((category) => (
                   <SelectItem key={category} value={category}>
@@ -315,7 +315,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                 placeholder="Search images..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-background border-border"
               />
             </div>
           </div>
