@@ -311,12 +311,12 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search images..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background border-border"
-              />
+            <Input
+              placeholder="Search images..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-background border-border text-white placeholder:text-muted-foreground"
+            />
             </div>
           </div>
 
@@ -436,8 +436,8 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                   </Badge>
                 )}
                 {canManageImages && (
-                  <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="flex gap-1">
+                  <div className="absolute top-2 right-2">
+                    <div className="flex gap-1 bg-black/50 backdrop-blur-sm rounded p-1">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -453,7 +453,9 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                         variant="destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteImage(image.id, image.file_path || "");
+                          if (confirm("Are you sure you want to delete this image?")) {
+                            handleDeleteImage(image.id, image.file_path || "");
+                          }
                         }}
                       >
                         <Trash2 className="h-3 w-3" />

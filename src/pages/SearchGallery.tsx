@@ -113,7 +113,7 @@ export default function SearchGallery() {
           placeholder="Type to search by project, date, or phase"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full text-base p-3 rounded-lg border mb-8"
+          className="w-full text-base p-3 rounded-lg border mb-8 bg-background border-border text-white placeholder:text-muted-foreground"
         />
 
         <div className="space-y-8">
