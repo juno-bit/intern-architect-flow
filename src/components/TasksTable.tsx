@@ -135,7 +135,7 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
               placeholder="Search tasks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-64"
+              className="w-64 bg-background border-border text-white placeholder:text-muted-foreground"
             />
           </div>
           

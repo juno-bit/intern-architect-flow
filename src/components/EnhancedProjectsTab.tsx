@@ -194,7 +194,7 @@ export default function EnhancedProjectsTab({
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 rounded-xl"
+              className="pl-10 rounded-xl bg-background border-border text-white placeholder:text-muted-foreground"
             />
           </div>
         </div>

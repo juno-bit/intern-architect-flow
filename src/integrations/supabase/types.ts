@@ -571,14 +571,8 @@ export type Database = {
           project_name: string
         }[]
       }
-      get_user_role: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
-      update_overdue_tasks: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      get_user_role: { Args: { user_uuid: string }; Returns: string }
+      update_overdue_tasks: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "chief_architect" | "junior_architect" | "intern"
