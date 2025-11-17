@@ -437,20 +437,22 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                 )}
                 {canManageImages && (
                   <div className="absolute top-2 right-2">
-                    <div className="flex gap-1 bg-black/50 backdrop-blur-sm rounded p-1">
+                    <div className="flex gap-1 bg-black/70 backdrop-blur-sm rounded p-1.5">
                       <Button
                         size="sm"
                         variant="secondary"
+                        className="h-8 w-8 p-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingImage(image);
                         }}
                       >
-                        <Edit className="h-3 w-3" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
+                        className="h-8 w-8 p-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm("Are you sure you want to delete this image?")) {
@@ -458,7 +460,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                           }
                         }}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
