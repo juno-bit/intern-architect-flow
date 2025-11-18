@@ -144,32 +144,34 @@ export default function EnhancedProjectsTab({
         ? (completedTasks / totalTasks) * 100 
         : 0;
       
-      // Time-based progress calculation
-      const project = projects.find(p => p.id === projectId);
-      let timeBasedPercentage = 0;
-      let daysElapsed = 0;
-      let daysRemaining = 0;
+    // Time-based progress calculation
+    const project = projects.find(p => p.id === projectId);
+    let timeBasedPercentage = 0;
+    let daysElapsed = 0;
+    let daysRemaining = 0;
+    
+    if (project?.start_date) {
+      const startDate = new Date(project.start_date);
+      const today = new Date();
       
-      if (project?.start_date) {
-        const startDate = new Date(project.start_date);
-        const today = new Date();
-        const maxDuration = 3.5 * 365; // 3.5 years in days (1277.5 days)
-        
-        // Calculate days elapsed since start
-        daysElapsed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Calculate time-based percentage
-        timeBasedPercentage = Math.min((daysElapsed / maxDuration) * 100, 100);
-        
-        // Calculate days remaining (based on 3.5 year timeline)
-        daysRemaining = Math.max(maxDuration - daysElapsed, 0);
-        
-        // If there's an estimated completion date, use it instead
-        if (project.estimated_completion_date) {
-          const estimatedEnd = new Date(project.estimated_completion_date);
-          daysRemaining = Math.floor((estimatedEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        }
+      let totalDuration = 3.5 * 365; // Default: 3.5 years in days (1277.5 days)
+      let endDate = new Date(startDate.getTime() + totalDuration * 24 * 60 * 60 * 1000);
+      
+      // If there's an estimated completion date, use it to calculate actual duration
+      if (project.estimated_completion_date) {
+        endDate = new Date(project.estimated_completion_date);
+        totalDuration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       }
+      
+      // Calculate days elapsed since start
+      daysElapsed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Calculate time-based percentage based on actual timeline
+      timeBasedPercentage = Math.min((daysElapsed / totalDuration) * 100, 100);
+      
+      // Calculate days remaining
+      daysRemaining = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
       
       // Use whichever is greater to show actual progress
       const completionPercentage = Math.max(

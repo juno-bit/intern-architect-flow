@@ -468,11 +468,23 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
               </div>
               <CardContent className="p-3">
                 <h4 className="font-medium text-sm truncate">{image.name}</h4>
-                {image.projects?.name && (
-                  <Badge variant="outline" className="text-xs mt-2 bg-blue-500 text-white border-0">
-                    {image.projects.name}
-                  </Badge>
-                )}
+                <div className="flex gap-1 mt-2 flex-wrap">
+                  {image.phase && (
+                    <Badge variant="outline" className="text-xs">
+                      {image.phase}
+                    </Badge>
+                  )}
+                  {image.image_category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {image.image_category}
+                    </Badge>
+                  )}
+                  {image.tasks?.title && (
+                    <Badge variant="outline" className="text-xs bg-blue-500 text-white border-0">
+                      Task: {image.tasks.title}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(image.capture_date).toLocaleDateString()}
                 </p>
