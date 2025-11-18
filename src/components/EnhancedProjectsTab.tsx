@@ -38,6 +38,9 @@ interface ProjectStats {
   completedTasks: number;
   totalImages: number;
   completionPercentage: number;
+  timeBasedPercentage?: number;
+  taskCompletionPercentage?: number;
+  daysElapsed?: number;
   daysRemaining?: number;
 }
 
@@ -135,7 +138,44 @@ export default function EnhancedProjectsTab({
 
       const totalTasks = tasks?.length || 0;
       const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
-      const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      
+      // Task-based completion
+      const taskCompletionPercentage = totalTasks > 0 
+        ? (completedTasks / totalTasks) * 100 
+        : 0;
+      
+      // Time-based progress calculation
+      const project = projects.find(p => p.id === projectId);
+      let timeBasedPercentage = 0;
+      let daysElapsed = 0;
+      let daysRemaining = 0;
+      
+      if (project?.start_date) {
+        const startDate = new Date(project.start_date);
+        const today = new Date();
+        const maxDuration = 3.5 * 365; // 3.5 years in days (1277.5 days)
+        
+        // Calculate days elapsed since start
+        daysElapsed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate time-based percentage
+        timeBasedPercentage = Math.min((daysElapsed / maxDuration) * 100, 100);
+        
+        // Calculate days remaining (based on 3.5 year timeline)
+        daysRemaining = Math.max(maxDuration - daysElapsed, 0);
+        
+        // If there's an estimated completion date, use it instead
+        if (project.estimated_completion_date) {
+          const estimatedEnd = new Date(project.estimated_completion_date);
+          daysRemaining = Math.floor((estimatedEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        }
+      }
+      
+      // Use whichever is greater to show actual progress
+      const completionPercentage = Math.max(
+        timeBasedPercentage,
+        taskCompletionPercentage
+      );
 
       setProjectStats(prev => ({
         ...prev,
@@ -143,11 +183,55 @@ export default function EnhancedProjectsTab({
           totalTasks,
           completedTasks,
           totalImages: images?.length || 0,
-          completionPercentage
+          completionPercentage: Math.round(completionPercentage),
+          timeBasedPercentage: Math.round(timeBasedPercentage),
+          taskCompletionPercentage: Math.round(taskCompletionPercentage),
+          daysElapsed,
+          daysRemaining
         }
       }));
+
+      // Auto-update project status
+      await updateProjectStatus(projectId, project?.status || '', {
+        totalTasks,
+        completedTasks,
+        totalImages: images?.length || 0,
+        completionPercentage: Math.round(completionPercentage)
+      });
     } catch (error) {
       console.error('Error fetching project stats:', error);
+    }
+  };
+
+  const updateProjectStatus = async (projectId: string, currentStatus: string, stats: ProjectStats) => {
+    try {
+      // Don't change if already completed
+      if (currentStatus === 'completed') return;
+      
+      // Auto-complete if all tasks are done
+      if (stats.totalTasks > 0 && stats.completedTasks === stats.totalTasks) {
+        await supabase
+          .from('projects')
+          .update({ status: 'completed' })
+          .eq('id', projectId);
+        
+        // Refresh projects to show updated status
+        fetchProjects();
+        return;
+      }
+      
+      // Auto-set to in_progress if has tasks and not already in progress
+      if (stats.totalTasks > 0 && currentStatus !== 'in_progress') {
+        await supabase
+          .from('projects')
+          .update({ status: 'in_progress' })
+          .eq('id', projectId);
+        
+        // Refresh projects to show updated status
+        fetchProjects();
+      }
+    } catch (error) {
+      console.error('Error updating project status:', error);
     }
   };
 
@@ -315,12 +399,27 @@ export default function EnhancedProjectsTab({
                 {stats.totalTasks > 0 && (
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Progress</span>
+                      <span className="text-muted-foreground">Overall Progress</span>
                       <span className="font-semibold">
                         {Math.round(stats.completionPercentage)}%
                       </span>
                     </div>
                     <Progress value={stats.completionPercentage} className="h-2" />
+                    
+                    {/* Show breakdown */}
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Tasks: {stats.taskCompletionPercentage || 0}%</span>
+                      <span>Time: {stats.timeBasedPercentage || 0}%</span>
+                    </div>
+                    
+                    {stats.daysRemaining !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        {stats.daysRemaining > 0 
+                          ? `${stats.daysRemaining} days remaining`
+                          : `${Math.abs(stats.daysRemaining)} days overdue`
+                        }
+                      </div>
+                    )}
                   </div>
                 )}
 
