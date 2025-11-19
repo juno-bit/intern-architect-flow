@@ -4,18 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { 
   Plus, 
   Edit2, 
   Trash2, 
   Calendar, 
-  Users, 
   CheckCircle2, 
-  Clock,
   Image as ImageIcon,
   Search,
-  BarChart3,
   Folder
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,11 +33,6 @@ interface ProjectStats {
   totalTasks: number;
   completedTasks: number;
   totalImages: number;
-  completionPercentage: number;
-  timeBasedPercentage?: number;
-  taskCompletionPercentage?: number;
-  daysElapsed?: number;
-  daysRemaining?: number;
 }
 
 interface EnhancedProjectsTabProps {
@@ -138,67 +129,23 @@ export default function EnhancedProjectsTab({
 
       const totalTasks = tasks?.length || 0;
       const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
-      
-      // Task-based completion
-      const taskCompletionPercentage = totalTasks > 0 
-        ? (completedTasks / totalTasks) * 100 
-        : 0;
-      
-    // Time-based progress calculation
-    const project = projects.find(p => p.id === projectId);
-    let timeBasedPercentage = 0;
-    let daysElapsed = 0;
-    let daysRemaining = 0;
-    
-    if (project?.start_date) {
-      const startDate = new Date(project.start_date);
-      const today = new Date();
-      
-      let totalDuration = 3.5 * 365; // Default: 3.5 years in days (1277.5 days)
-      let endDate = new Date(startDate.getTime() + totalDuration * 24 * 60 * 60 * 1000);
-      
-      // If there's an estimated completion date, use it to calculate actual duration
-      if (project.estimated_completion_date) {
-        endDate = new Date(project.estimated_completion_date);
-        totalDuration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      }
-      
-      // Calculate days elapsed since start
-      daysElapsed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Calculate time-based percentage based on actual timeline
-      timeBasedPercentage = Math.min((daysElapsed / totalDuration) * 100, 100);
-      
-      // Calculate days remaining
-      daysRemaining = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    }
-      
-      // Use whichever is greater to show actual progress
-      const completionPercentage = Math.max(
-        timeBasedPercentage,
-        taskCompletionPercentage
-      );
+      const totalImages = images?.length || 0;
 
       setProjectStats(prev => ({
         ...prev,
         [projectId]: {
           totalTasks,
           completedTasks,
-          totalImages: images?.length || 0,
-          completionPercentage: Math.round(completionPercentage),
-          timeBasedPercentage: Math.round(timeBasedPercentage),
-          taskCompletionPercentage: Math.round(taskCompletionPercentage),
-          daysElapsed,
-          daysRemaining
+          totalImages
         }
       }));
 
       // Auto-update project status
+      const project = projects.find(p => p.id === projectId);
       await updateProjectStatus(projectId, project?.status || '', {
         totalTasks,
         completedTasks,
-        totalImages: images?.length || 0,
-        completionPercentage: Math.round(completionPercentage)
+        totalImages
       });
     } catch (error) {
       console.error('Error fetching project stats:', error);
@@ -237,44 +184,43 @@ export default function EnhancedProjectsTab({
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-500 text-white';
-      case 'in_progress': return 'bg-blue-500 text-white';
-      case 'on_hold': return 'bg-orange-500 text-white';
-      case 'planning': return 'bg-purple-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
-  const getDaysRemaining = (endDate?: string) => {
-    if (!endDate) return null;
+  const getDaysRemaining = (estimatedDate?: string) => {
+    if (!estimatedDate) return null;
+    
     const today = new Date();
-    const end = new Date(endDate);
-    const diffTime = end.getTime() - today.getTime();
+    const estimated = new Date(estimatedDate);
+    const diffTime = estimated.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
     return diffDays;
   };
 
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.clients?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-muted-foreground">Loading projects...</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with search and create button */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex-1 w-full sm:w-auto">
-          <div className="relative">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Projects</h2>
+          <p className="text-muted-foreground mt-1">
+            Manage and track all your architectural projects
+          </p>
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search projects..."
@@ -336,8 +282,7 @@ export default function EnhancedProjectsTab({
           const stats = projectStats[project.id] || {
             totalTasks: 0,
             completedTasks: 0,
-            totalImages: 0,
-            completionPercentage: 0
+            totalImages: 0
           };
           const daysRemaining = getDaysRemaining(project.estimated_completion_date);
 
@@ -370,7 +315,7 @@ export default function EnhancedProjectsTab({
                         size="sm"
                         variant="ghost"
                         onClick={() => onDeleteProject(project.id)}
-                        className="h-8 w-8 p-0"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -389,41 +334,13 @@ export default function EnhancedProjectsTab({
 
                 {/* Status and Phase */}
                 <div className="flex gap-2 flex-wrap">
-                  <Badge className={getStatusBadgeColor(project.status)}>
+                  <Badge variant="outline">
                     {project.status.replace('_', ' ')}
                   </Badge>
                   {project.phase && (
                     <Badge variant="outline">{project.phase}</Badge>
                   )}
                 </div>
-
-                {/* Progress */}
-                {stats.totalTasks > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Overall Progress</span>
-                      <span className="font-semibold">
-                        {Math.round(stats.completionPercentage)}%
-                      </span>
-                    </div>
-                    <Progress value={stats.completionPercentage} className="h-2" />
-                    
-                    {/* Show breakdown */}
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Tasks: {stats.taskCompletionPercentage || 0}%</span>
-                      <span>Time: {stats.timeBasedPercentage || 0}%</span>
-                    </div>
-                    
-                    {stats.daysRemaining !== undefined && (
-                      <div className="text-xs text-muted-foreground">
-                        {stats.daysRemaining > 0 
-                          ? `${stats.daysRemaining} days remaining`
-                          : `${Math.abs(stats.daysRemaining)} days overdue`
-                        }
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 pt-2 border-t">
@@ -448,76 +365,16 @@ export default function EnhancedProjectsTab({
                       <Calendar className="h-4 w-4 text-orange-500" />
                     </div>
                     <div className="text-lg font-bold">
-                      {daysRemaining !== null ? (
-                        daysRemaining > 0 ? daysRemaining : '0'
-                      ) : '-'}
+                      {daysRemaining !== null ? daysRemaining : '--'}
                     </div>
                     <div className="text-xs text-muted-foreground">Days</div>
                   </div>
                 </div>
-
-                {/* Dates */}
-                {(project.start_date || project.estimated_completion_date) && (
-                  <div className="space-y-1 text-xs text-muted-foreground pt-2 border-t">
-                    {project.start_date && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
-                        <span>Started: {new Date(project.start_date).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                    {project.estimated_completion_date && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        <span>Due: {new Date(project.estimated_completion_date).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
-
-      {/* Summary Stats */}
-      {filteredProjects.length > 0 && (
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-2 rounded-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Portfolio Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-primary">
-                  {filteredProjects.length}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Total Projects</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-500">
-                  {filteredProjects.filter(p => p.status === 'completed').length}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Completed</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-500">
-                  {filteredProjects.filter(p => p.status === 'in_progress').length}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">In Progress</p>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-500">
-                  {filteredProjects.filter(p => p.status === 'planning').length}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">Planning</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
