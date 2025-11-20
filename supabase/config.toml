@@ -9,3 +9,6 @@ max_rows = 1000
 
 [functions.deadline-notifications]
 verify_jwt = true
+
+[functions.send-custom-alert]
+verify_jwt = true

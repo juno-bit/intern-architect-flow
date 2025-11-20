@@ -112,21 +112,47 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
       const projectName = projects.find(p => p.id === alertForm.project_id)?.name;
       const assigneeName = users.find(u => u.user_id === alertForm.assignee_id)?.full_name;
 
-      // Create notification
-      const { error } = await supabase
+      const notificationMessage = alertForm.message || 
+        `Reminder: ${taskName} is due on ${new Date(alertForm.due_date).toLocaleDateString()}${projectName ? ` for project ${projectName}` : ''}`;
+
+      // Create notification in database
+      const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
           user_id: alertForm.assignee_id,
           title: 'Deadline Alert',
-          message: alertForm.message || `Reminder: ${taskName} is due on ${new Date(alertForm.due_date).toLocaleDateString()}${projectName ? ` for project ${projectName}` : ''}`,
+          message: notificationMessage,
           type: 'deadline_reminder',
-          task_id: alertForm.use_existing_task ? alertForm.task_id : null
+          task_id: alertForm.use_existing_task ? alertForm.task_id : null,
+          sent_at: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (notificationError) throw notificationError;
 
-      toast.success(`Deadline alert sent to ${assigneeName}`);
-      setShowForm(false);
+      // Send email notification via edge function
+      const { data: emailData, error: emailError } = await supabase.functions.invoke(
+        'send-custom-alert',
+        {
+          body: {
+            assignee_id: alertForm.assignee_id,
+            title: 'Deadline Alert',
+            message: notificationMessage,
+            due_date: alertForm.due_date,
+            task_name: taskName,
+            project_name: projectName
+          }
+        }
+      );
+
+      if (emailError) {
+        console.error('Email sending error:', emailError);
+        toast.warning('Alert created but email failed to send');
+      } else {
+        console.log('Email sent successfully:', emailData);
+        toast.success(`Alert sent successfully to ${assigneeName}`);
+      }
+
+      // Reset form and close dialog
       setAlertForm({
         project_id: '',
         task_id: '',
@@ -136,6 +162,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
         custom_task_name: '',
         use_existing_task: true
       });
+      setShowForm(false);
     } catch (error) {
       console.error('Error sending alert:', error);
       toast.error('Failed to send alert');
