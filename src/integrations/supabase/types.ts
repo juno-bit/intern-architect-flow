@@ -132,6 +132,50 @@ export type Database = {
           },
         ]
       }
+      meetings: {
+        Row: {
+          attendees: string[] | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          meeting_date: string
+          notes: string | null
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendees?: string[] | null
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          meeting_date: string
+          notes?: string | null
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendees?: string[] | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          meeting_date?: string
+          notes?: string | null
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
