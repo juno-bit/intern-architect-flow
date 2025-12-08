@@ -336,12 +336,12 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Project (Optional)</label>
-              <Select value={form.project_id} onValueChange={(value) => setForm({ ...form, project_id: value })}>
+              <Select value={form.project_id || "none"} onValueChange={(value) => setForm({ ...form, project_id: value === "none" ? "" : value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border border-border">
-                  <SelectItem value="">No project</SelectItem>
+                  <SelectItem value="none">No project</SelectItem>
                   {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
