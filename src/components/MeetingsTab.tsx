@@ -61,17 +61,31 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // Fetch meetings with projects
+      const { data: meetingsData, error: meetingsError } = await supabase
         .from('meetings')
         .select(`
           *,
-          projects (name),
-          profiles:created_by (full_name)
+          projects (name)
         `)
         .order('meeting_date', { ascending: false });
 
-      if (error) throw error;
-      setMeetings((data || []) as unknown as Meeting[]);
+      if (meetingsError) throw meetingsError;
+
+      // Fetch profiles separately to get creator names
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+
+      const profilesMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
+
+      // Combine data
+      const meetingsWithProfiles = (meetingsData || []).map(meeting => ({
+        ...meeting,
+        profiles: { full_name: profilesMap.get(meeting.created_by) || 'Unknown' }
+      }));
+
+      setMeetings(meetingsWithProfiles as unknown as Meeting[]);
     } catch (error) {
       console.error('Error fetching meetings:', error);
       toast.error('Error loading meetings');
