@@ -18,7 +18,8 @@ import {
   Edit,
   Plus,
   Search,
-  Upload
+  Upload,
+  Eye
 } from 'lucide-react';
 
 interface Document {
@@ -61,6 +62,8 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     description: '',
     project_id: ''
   });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -134,6 +137,16 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+
+  // View document functionality - Available to ALL users
+  const viewDocument = (doc: Document) => {
+    setPreviewUrl(doc.url);
+    setIsPreviewOpen(true);
+  };
+
+  // FULL ACCESS FOR EVERYONE
+  const canUpload = () => true; // Everyone can upload
+  const canManageDocument = () => true; // Everyone can edit/delete ANY document
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,10 +248,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     setIsDialogOpen(false);
   };
 
-  const canManageDocument = (doc: Document) => {
-    return doc.uploaded_by === userId || userRole === 'chief_architect';
-  };
-
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchQuery || 
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -316,6 +325,17 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {/* View - Available to EVERYONE */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => viewDocument(doc)}
+                    title="View Document"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Download - Available to EVERYONE */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -324,33 +344,77 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                   >
                     <Download className="h-4 w-4" />
                   </Button>
-                  {canManageDocument(doc) && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => startEdit(doc)}
-                        title="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(doc)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                  
+                  {/* Edit - Available to EVERYONE (ANY document) */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => startEdit(doc)}
+                    title="Edit"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Delete - Available to EVERYONE (ANY document) */}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleDelete(doc)}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Upload - Available to EVERYONE */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsDialogOpen(true)}
+                    title="Upload New"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Upload/Edit Dialog */}
+        {/* Document Preview Dialog - Available to EVERYONE */}
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-card border-border">
+            <DialogHeader className="p-6 border-b border-border">
+              <DialogTitle className="text-foreground flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Document Preview
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(previewUrl || '', '_blank')}
+                className="mt-2"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Open in new tab
+              </Button>
+            </DialogHeader>
+            <div className="p-6 max-h-[70vh] overflow-auto">
+              {previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[60vh] border-0 rounded-lg shadow-lg"
+                  title="Document Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
+                  Preview not available for this file type
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Upload/Edit Dialog - Available to EVERYONE */}
         <Dialog open={isDialogOpen} onOpenChange={(open) => !open && resetForm()}>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
