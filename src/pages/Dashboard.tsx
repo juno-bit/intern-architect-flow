@@ -18,6 +18,7 @@ import { EnhancedTaskAssignment } from '@/components/EnhancedTaskAssignment';
 import ImageUploadForm from '@/components/ImageUploadForm';
 import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 import MeetingsTab from '@/components/MeetingsTab';
+import DocumentsTab from '@/components/DocumentsTab';
 
 interface Task {
   id: string;
@@ -405,9 +406,10 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="enhanced-tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
               <TabsTrigger value="meetings">Meetings</TabsTrigger>
             )}
@@ -441,6 +443,10 @@ export default function Dashboard() {
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            <DocumentsTab userId={user?.id || ''} userRole={profile?.role || ''} />
           </TabsContent>
 
           <TabsContent value="projects" className="space-y-6">

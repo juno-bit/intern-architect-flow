@@ -50,6 +50,69 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          description: string | null
+          file_extension: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          name: string
+          project_id: string | null
+          updated_at: string
+          uploaded_by: string
+          url: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          file_extension?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          project_id?: string | null
+          updated_at?: string
+          uploaded_by: string
+          url: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          file_extension?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          project_id?: string | null
+          updated_at?: string
+          uploaded_by?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       images: {
         Row: {
           capture_date: string | null
