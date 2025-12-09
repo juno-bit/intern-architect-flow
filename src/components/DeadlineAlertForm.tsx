@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, Calendar, User, FolderOpen } from 'lucide-react';
+import { Send, Calendar, User, FolderOpen, Mail } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -18,6 +18,7 @@ interface User {
   user_id: string;
   full_name: string;
   role: string;
+  email: string;
 }
 
 interface Task {
@@ -61,10 +62,10 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
         .select('id, name')
         .order('name');
 
-      // Fetch users
+      // Fetch users WITH EMAIL
       const { data: usersData } = await supabase
         .from('profiles')
-        .select('user_id, full_name, role')
+        .select('user_id, full_name, role, email')
         .order('full_name');
 
       // Fetch tasks
@@ -110,17 +111,24 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
         : alertForm.custom_task_name;
 
       const projectName = projects.find(p => p.id === alertForm.project_id)?.name;
-      const assigneeName = users.find(u => u.user_id === alertForm.assignee_id)?.full_name;
+      const assignee = users.find(u => u.user_id === alertForm.assignee_id);
+      const assigneeName = assignee?.full_name;
+      const assigneeEmail = assignee?.email;
+
+      if (!assigneeEmail) {
+        toast.error('Assignee email not found');
+        return;
+      }
 
       const notificationMessage = alertForm.message || 
-        `Reminder: ${taskName} is due on ${new Date(alertForm.due_date).toLocaleDateString()}${projectName ? ` for project ${projectName}` : ''}`;
+        `🚨 Deadline Reminder: ${taskName} is due on ${new Date(alertForm.due_date).toLocaleDateString()}${projectName ? ` for project ${projectName}` : ''}`;
 
-      // Create notification in database
+      // 1. Create notification in database
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
           user_id: alertForm.assignee_id,
-          title: 'Deadline Alert',
+          title: 'Deadline Alert - Email Sent',
           message: notificationMessage,
           type: 'deadline_reminder',
           task_id: alertForm.use_existing_task ? alertForm.task_id : null,
@@ -129,16 +137,44 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
 
       if (notificationError) throw notificationError;
 
-      // Send email notification via edge function
+      // 2. Send DIRECT EMAIL via Supabase Edge Function
       const { data: emailData, error: emailError } = await supabase.functions.invoke(
-        'send-custom-alert',
+        'send-deadline-email',
         {
           body: {
-            assignee_id: alertForm.assignee_id,
-            title: 'Deadline Alert',
-            message: notificationMessage,
-            due_date: alertForm.due_date,
+            to: assigneeEmail,
+            toName: assigneeName,
+            subject: '🚨 Deadline Alert - Action Required',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc2626;">Deadline Alert!</h2>
+                <p><strong>Task:</strong> ${taskName}</p>
+                <p><strong>Due Date:</strong> ${new Date(alertForm.due_date).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</p>
+                ${projectName ? `<p><strong>Project:</strong> ${projectName}</p>` : ''}
+                <p><strong>Message:</strong><br>${notificationMessage}</p>
+                <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <p style="color: #92400e; margin: 0;"><strong>⚠️ This task is approaching its deadline!</strong></p>
+                </div>
+                <p style="color: #6b7280; font-size: 14px;">
+                  This is an automated reminder from the project management system.
+                </p>
+              </div>
+            `,
+            text: `Deadline Alert!
+
+Task: ${taskName}
+Due Date: ${new Date(alertForm.due_date).toLocaleDateString()}
+Project: ${projectName || 'N/A'}
+Message: ${notificationMessage}
+
+⚠️ This task is approaching its deadline!`,
             task_name: taskName,
+            due_date: alertForm.due_date,
             project_name: projectName
           }
         }
@@ -148,11 +184,11 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
         console.error('Email sending error:', emailError);
         toast.warning('Alert created but email failed to send');
       } else {
-        console.log('Email sent successfully:', emailData);
-        toast.success(`Alert sent successfully to ${assigneeName}`);
+        console.log('✅ Email sent successfully to:', assigneeEmail, emailData);
+        toast.success(`✅ Email sent to ${assigneeName} (${assigneeEmail})`);
       }
 
-      // Reset form and close dialog
+      // Reset form
       setAlertForm({
         project_id: '',
         task_id: '',
@@ -171,6 +207,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
     }
   };
 
+  // ✅ CHIEF ARCHITECT ONLY ACCESS RESTORED
   if (userRole !== 'chief_architect') {
     return null;
   }
@@ -180,7 +217,8 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Send className="h-5 w-5" />
-          Custom Deadline Alerts
+          <Mail className="h-5 w-5 text-blue-500" />
+          Chief Architect: Send Email Alerts
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -188,12 +226,12 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
           <DialogTrigger asChild>
             <Button variant="success" size="lg" className="w-full">
               <Send className="h-4 w-4 mr-2" />
-              Create Deadline Alert
+              Send Email Alert
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Send Deadline Alert</DialogTitle>
+              <DialogTitle>Send Deadline Alert via Email</DialogTitle>
             </DialogHeader>
             <form onSubmit={sendCustomAlert} className="space-y-4">
               <Select
@@ -203,7 +241,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50 text-white">
+                <SelectContent>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center gap-2">
@@ -244,7 +282,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                   <SelectTrigger>
                     <SelectValue placeholder="Select task" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border border-border z-50 text-white">
+                  <SelectContent>
                     {filteredTasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         {task.title}
@@ -269,12 +307,15 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignee *" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50 text-white">
+                <SelectContent>
                   {users.map((user) => (
                     <SelectItem key={user.user_id} value={user.user_id}>
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
                         {user.full_name} ({user.role})
+                        {user.email && (
+                          <span className="text-xs text-muted-foreground ml-2">• {user.email}</span>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
@@ -303,7 +344,7 @@ export default function DeadlineAlertForm({ userId, userRole }: DeadlineAlertFor
 
               <div className="flex space-x-2">
                 <Button type="submit" variant="success" size="lg" className="flex-1" disabled={sending}>
-                  {sending ? 'Sending...' : 'Send Alert'}
+                  {sending ? 'Sending Email...' : 'Send Email Alert'}
                 </Button>
                 <Button type="button" variant="outline" size="lg" onClick={() => setShowForm(false)}>
                   Cancel
