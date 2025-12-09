@@ -32,19 +32,12 @@ interface Document {
   description: string | null;
   uploaded_by: string;
   project_id: string | null;
-  client_id: string | null;
   created_at: string;
   projects?: { name: string } | null;
-  clients?: { name: string } | null;
   profiles?: { full_name: string } | null;
 }
 
 interface Project {
-  id: string;
-  name: string;
-}
-
-interface Client {
   id: string;
   name: string;
 }
@@ -57,25 +50,21 @@ interface DocumentsTabProps {
 const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [form, setForm] = useState({
     description: '',
-    project_id: '',
-    client_id: ''
+    project_id: ''
   });
 
   useEffect(() => {
     fetchDocuments();
     fetchProjects();
-    fetchClients();
   }, []);
 
   const fetchDocuments = async () => {
@@ -85,8 +74,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
         .from('documents')
         .select(`
           *,
-          projects (name),
-          clients (name)
+          projects (name)
         `)
         .order('created_at', { ascending: false });
 
@@ -116,11 +104,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
   const fetchProjects = async () => {
     const { data } = await supabase.from('projects').select('id, name').order('name');
     setProjects(data || []);
-  };
-
-  const fetchClients = async () => {
-    const { data } = await supabase.from('clients').select('id, name').order('name');
-    setClients(data || []);
   };
 
   const getFileIcon = (extension: string | null, mimeType: string | null) => {
@@ -168,8 +151,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
           .from('documents')
           .update({
             description: form.description || null,
-            project_id: form.project_id || null,
-            client_id: form.client_id || null
+            project_id: form.project_id || null
           })
           .eq('id', editingDocument.id);
 
@@ -201,8 +183,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
             file_extension: fileExt,
             description: form.description || null,
             uploaded_by: userId,
-            project_id: form.project_id || null,
-            client_id: form.client_id || null
+            project_id: form.project_id || null
           });
 
         if (insertError) throw insertError;
@@ -242,14 +223,13 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     setEditingDocument(doc);
     setForm({
       description: doc.description || '',
-      project_id: doc.project_id || '',
-      client_id: doc.client_id || ''
+      project_id: doc.project_id || ''
     });
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
-    setForm({ description: '', project_id: '', client_id: '' });
+    setForm({ description: '', project_id: '' });
     setSelectedFile(null);
     setEditingDocument(null);
     setIsDialogOpen(false);
@@ -264,8 +244,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = !projectFilter || projectFilter === 'all' || doc.project_id === projectFilter;
-    const matchesClient = !clientFilter || clientFilter === 'all' || doc.client_id === clientFilter;
-    return matchesSearch && matchesProject && matchesClient;
+    return matchesSearch && matchesProject;
   });
 
   return (
@@ -297,17 +276,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
               <SelectItem value="all">All Projects</SelectItem>
               {projects.map(p => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by client" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">All Clients</SelectItem>
-              {clients.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -343,12 +311,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                       <>
                         <span>•</span>
                         <span className="text-primary">Project: {doc.projects.name}</span>
-                      </>
-                    )}
-                    {doc.clients?.name && (
-                      <>
-                        <span>•</span>
-                        <span className="text-accent-foreground">Client: {doc.clients.name}</span>
                       </>
                     )}
                   </div>
@@ -436,23 +398,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                     <SelectItem value="none">No project</SelectItem>
                     {projects.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Client (Optional)</label>
-                <Select 
-                  value={form.client_id || "none"} 
-                  onValueChange={(value) => setForm({ ...form, client_id: value === "none" ? "" : value })}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="none">No client</SelectItem>
-                    {clients.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
