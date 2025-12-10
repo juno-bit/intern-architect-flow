@@ -19,6 +19,7 @@ import ImageUploadForm from '@/components/ImageUploadForm';
 import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 import MeetingsTab from '@/components/MeetingsTab';
 import DocumentsTab from '@/components/DocumentsTab';
+import { FinancialsTab } from '@/components/invoices';
 
 interface Task {
   id: string;
@@ -406,12 +407,15 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="enhanced-tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
-              <TabsTrigger value="meetings">Meetings</TabsTrigger>
+              <>
+                <TabsTrigger value="meetings">Meetings</TabsTrigger>
+                <TabsTrigger value="financials">Financials</TabsTrigger>
+              </>
             )}
             {profile?.role === 'chief_architect' && (
               <>
@@ -460,9 +464,14 @@ export default function Dashboard() {
           </TabsContent>
 
           {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
-            <TabsContent value="meetings" className="space-y-6">
-              <MeetingsTab userId={user?.id || ''} userRole={profile?.role || ''} />
-            </TabsContent>
+            <>
+              <TabsContent value="meetings" className="space-y-6">
+                <MeetingsTab userId={user?.id || ''} userRole={profile?.role || ''} />
+              </TabsContent>
+              <TabsContent value="financials" className="space-y-6">
+                <FinancialsTab userId={user?.id || ''} userRole={profile?.role || ''} />
+              </TabsContent>
+            </>
           )}
 
           {profile?.role === 'chief_architect' && (

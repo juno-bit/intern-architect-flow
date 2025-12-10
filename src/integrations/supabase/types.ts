@@ -195,6 +195,62 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          currency: string
+          description: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          paid_date: string | null
+          project_id: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          paid_date?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          paid_date?: string | null
+          project_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meetings: {
         Row: {
           attendees: string[] | null
@@ -683,6 +739,7 @@ export type Database = {
     }
     Enums: {
       app_role: "chief_architect" | "junior_architect" | "intern"
+      invoice_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
       notification_type:
         | "deadline_reminder"
         | "task_assigned"
@@ -824,6 +881,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["chief_architect", "junior_architect", "intern"],
+      invoice_status: ["draft", "sent", "paid", "overdue", "cancelled"],
       notification_type: [
         "deadline_reminder",
         "task_assigned",
