@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 interface Project {
   id: string;
@@ -110,11 +111,159 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     return <Badge className={styles[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
-  const formatCurrency = (amount: number, currency: string = 'INR') => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
+  // Format currency in Indian numbering system (lakhs, crores)
+  const formatCurrencyIndian = (amount: number): string => {
+    const absAmount = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    
+    if (absAmount >= 10000000) {
+      // Crores (1,00,00,000+)
+      return `${sign}₹${(absAmount / 10000000).toFixed(2)} Cr`;
+    } else if (absAmount >= 100000) {
+      // Lakhs (1,00,000+)
+      return `${sign}₹${(absAmount / 100000).toFixed(2)} L`;
+    } else {
+      // Standard Indian formatting for smaller amounts
+      return `${sign}₹${absAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+  };
+
+  const formatCurrencyFull = (amount: number): string => {
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const exportToPDF = (invoice: Invoice) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INVOICE', pageWidth / 2, 30, { align: 'center' });
+    
+    // Invoice number and status
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Invoice #: ${invoice.invoice_number}`, 20, 50);
+    doc.text(`Status: ${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}`, pageWidth - 20, 50, { align: 'right' });
+    
+    // Divider
+    doc.setLineWidth(0.5);
+    doc.line(20, 55, pageWidth - 20, 55);
+    
+    // Project info
+    let yPos = 70;
+    if (invoice.projects?.name) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project:', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoice.projects.name, 60, yPos);
+      yPos += 10;
+    }
+    
+    // Dates
+    doc.setFont('helvetica', 'bold');
+    doc.text('Issue Date:', 20, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(new Date(invoice.issue_date).toLocaleDateString('en-IN'), 60, yPos);
+    yPos += 10;
+    
+    if (invoice.due_date) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Due Date:', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(new Date(invoice.due_date).toLocaleDateString('en-IN'), 60, yPos);
+      yPos += 10;
+    }
+    
+    if (invoice.paid_date) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Paid Date:', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(new Date(invoice.paid_date).toLocaleDateString('en-IN'), 60, yPos);
+      yPos += 10;
+    }
+    
+    // Description
+    if (invoice.description) {
+      yPos += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Description:', 20, yPos);
+      yPos += 8;
+      doc.setFont('helvetica', 'normal');
+      const descLines = doc.splitTextToSize(invoice.description, pageWidth - 40);
+      doc.text(descLines, 20, yPos);
+      yPos += descLines.length * 7;
+    }
+    
+    // Amount section
+    yPos += 20;
+    doc.setLineWidth(0.3);
+    doc.line(20, yPos, pageWidth - 20, yPos);
+    yPos += 15;
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Amount:', 20, yPos);
+    doc.text(formatCurrencyFull(invoice.amount), pageWidth - 20, yPos, { align: 'right' });
+    
+    // Amount in words (Indian system)
+    yPos += 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`(${numberToWordsIndian(invoice.amount)} Only)`, 20, yPos);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')}`, pageWidth / 2, 280, { align: 'center' });
+    
+    // Save
+    doc.save(`${invoice.invoice_number}.pdf`);
+    toast.success('Invoice PDF downloaded');
+  };
+
+  // Convert number to words in Indian system
+  const numberToWordsIndian = (num: number): string => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    if (num === 0) return 'Zero Rupees';
+    
+    const rupees = Math.floor(num);
+    const paise = Math.round((num - rupees) * 100);
+    
+    const convertBelowThousand = (n: number): string => {
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertBelowThousand(n % 100) : '');
+    };
+    
+    let words = '';
+    if (rupees >= 10000000) {
+      words += convertBelowThousand(Math.floor(rupees / 10000000)) + ' Crore ';
+      num = rupees % 10000000;
+    } else {
+      num = rupees;
+    }
+    if (num >= 100000) {
+      words += convertBelowThousand(Math.floor(num / 100000)) + ' Lakh ';
+      num = num % 100000;
+    }
+    if (num >= 1000) {
+      words += convertBelowThousand(Math.floor(num / 1000)) + ' Thousand ';
+      num = num % 1000;
+    }
+    if (num > 0) {
+      words += convertBelowThousand(num);
+    }
+    
+    words = words.trim() + ' Rupees';
+    if (paise > 0) {
+      words += ' and ' + convertBelowThousand(paise) + ' Paise';
+    }
+    
+    return words;
   };
 
   const handleSubmit = async () => {
@@ -366,7 +515,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           <CardContent>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-foreground">{formatCurrency(totalBilled)}</span>
+              <span className="text-2xl font-bold text-foreground">{formatCurrencyIndian(totalBilled)}</span>
             </div>
           </CardContent>
         </Card>
@@ -377,7 +526,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-2xl font-bold text-foreground">{formatCurrency(totalPaid)}</span>
+              <span className="text-2xl font-bold text-foreground">{formatCurrencyIndian(totalPaid)}</span>
             </div>
           </CardContent>
         </Card>
@@ -388,7 +537,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           <CardContent>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-yellow-500" />
-              <span className="text-2xl font-bold text-foreground">{formatCurrency(totalOutstanding)}</span>
+              <span className="text-2xl font-bold text-foreground">{formatCurrencyIndian(totalOutstanding)}</span>
             </div>
           </CardContent>
         </Card>
@@ -425,25 +574,30 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       {invoice.projects?.name && <p>Project: {invoice.projects.name}</p>}
-                      <p>Issued: {new Date(invoice.issue_date).toLocaleDateString()}</p>
-                      {invoice.due_date && <p>Due: {new Date(invoice.due_date).toLocaleDateString()}</p>}
+                      <p>Issued: {new Date(invoice.issue_date).toLocaleDateString('en-IN')}</p>
+                      {invoice.due_date && <p>Due: {new Date(invoice.due_date).toLocaleDateString('en-IN')}</p>}
                       {invoice.description && <p className="line-clamp-1">{invoice.description}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-xl font-bold text-foreground">{formatCurrency(invoice.amount)}</span>
-                    {canManageFinancials() && (
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {userRole === 'chief_architect' && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(invoice.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                    <span className="text-xl font-bold text-foreground">{formatCurrencyFull(invoice.amount)}</span>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => exportToPDF(invoice)} title="Download PDF">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {canManageFinancials() && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
+                            <Pencil className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    )}
+                          {userRole === 'chief_architect' && (
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(invoice.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
