@@ -132,6 +132,9 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // Alias for backward compatibility
+  const formatCurrency = formatCurrencyFull;
+
   const exportToPDF = (invoice: Invoice) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
