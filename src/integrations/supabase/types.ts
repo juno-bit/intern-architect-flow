@@ -195,6 +195,47 @@ export type Database = {
           },
         ]
       }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          recorded_by: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          recorded_by: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -206,6 +247,7 @@ export type Database = {
           id: string
           invoice_number: string
           issue_date: string
+          paid_amount: number | null
           paid_date: string | null
           project_id: string | null
           status: Database["public"]["Enums"]["invoice_status"]
@@ -221,6 +263,7 @@ export type Database = {
           id?: string
           invoice_number: string
           issue_date?: string
+          paid_amount?: number | null
           paid_date?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -236,6 +279,7 @@ export type Database = {
           id?: string
           invoice_number?: string
           issue_date?: string
+          paid_amount?: number | null
           paid_date?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
