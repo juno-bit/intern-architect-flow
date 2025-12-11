@@ -19,9 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
+  SelectLabel,
+  SelectGroup,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle, Download, CreditCard } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 interface Project {
@@ -36,6 +41,7 @@ interface Invoice {
   project_id: string | null;
   invoice_number: string;
   amount: number;
+  paid_amount: number;
   currency: string;
   status: InvoiceStatus;
   issue_date: string;
@@ -46,6 +52,17 @@ interface Invoice {
   created_at: string;
   updated_at: string;
   projects?: { name: string } | null;
+}
+
+interface Payment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  notes: string | null;
+  recorded_by: string;
+  created_at: string;
 }
 
 interface FinancialsTabProps {
@@ -61,6 +78,8 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   const [projectFilter, setProjectFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [form, setForm] = useState({
     project_id: '',
@@ -70,6 +89,12 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     issue_date: new Date().toISOString().split('T')[0],
     due_date: '',
     description: '',
+  });
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: '',
+    notes: '',
   });
 
   const canManageFinancials = () => {
@@ -354,6 +379,78 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     setEditingInvoice(null);
   };
 
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: '',
+      notes: '',
+    });
+    setSelectedInvoice(null);
+  };
+
+  const openPaymentDialog = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    const remaining = invoice.amount - (invoice.paid_amount || 0);
+    setPaymentForm({
+      amount: remaining.toString(),
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: '',
+      notes: '',
+    });
+    setPaymentDialogOpen(true);
+  };
+
+  const handleRecordPayment = async () => {
+    if (!selectedInvoice || !paymentForm.amount) {
+      toast.error('Payment amount is required');
+      return;
+    }
+
+    const paymentAmount = parseIndianCurrencyInput(paymentForm.amount);
+    const remaining = selectedInvoice.amount - (selectedInvoice.paid_amount || 0);
+    
+    if (paymentAmount > remaining) {
+      toast.error(`Payment exceeds remaining balance of ${formatCurrencyFull(remaining)}`);
+      return;
+    }
+
+    try {
+      // Record the payment
+      const { error: paymentError } = await supabase.from('invoice_payments').insert({
+        invoice_id: selectedInvoice.id,
+        amount: paymentAmount,
+        payment_date: paymentForm.payment_date,
+        payment_method: paymentForm.payment_method || null,
+        notes: paymentForm.notes || null,
+        recorded_by: userId,
+      });
+      if (paymentError) throw paymentError;
+
+      // Update invoice paid_amount and status
+      const newPaidAmount = (selectedInvoice.paid_amount || 0) + paymentAmount;
+      const newStatus = newPaidAmount >= selectedInvoice.amount ? 'paid' : selectedInvoice.status;
+      const paidDate = newPaidAmount >= selectedInvoice.amount ? new Date().toISOString().split('T')[0] : selectedInvoice.paid_date;
+
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({ 
+          paid_amount: newPaidAmount,
+          status: newStatus,
+          paid_date: paidDate
+        })
+        .eq('id', selectedInvoice.id);
+      if (updateError) throw updateError;
+
+      toast.success('Payment recorded');
+      resetPaymentForm();
+      setPaymentDialogOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Error recording payment');
+    }
+  };
+
   const startEdit = (invoice: Invoice) => {
     setEditingInvoice(invoice);
     setForm({
@@ -379,8 +476,8 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   });
 
   const totalBilled = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const totalPaid = invoices.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
-  const totalOutstanding = invoices.filter((inv) => inv.status !== 'paid' && inv.status !== 'cancelled').reduce((sum, inv) => sum + inv.amount, 0);
+  const totalReceived = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+  const totalOutstanding = invoices.filter((inv) => inv.status !== 'cancelled').reduce((sum, inv) => sum + inv.amount - (inv.paid_amount || 0), 0);
 
   if (loading) {
     return (
@@ -471,12 +568,19 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectContent className="bg-popover">
+                      <SelectGroup>
+                        <SelectLabel className="text-xs text-muted-foreground">Pending</SelectLabel>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="sent">Sent</SelectItem>
+                        <SelectItem value="overdue">Overdue</SelectItem>
+                      </SelectGroup>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel className="text-xs text-muted-foreground">Settled</SelectLabel>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -521,19 +625,98 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="sent">Sent</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel className="text-xs text-muted-foreground">Pending</SelectLabel>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="sent">Sent</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+            </SelectGroup>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel className="text-xs text-muted-foreground">Settled</SelectLabel>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) resetPaymentForm(); }}>
+        <DialogContent className="max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Record Payment</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Invoice: <span className="font-medium text-foreground">{selectedInvoice.invoice_number}</span></p>
+                <p className="text-sm text-muted-foreground">Total: <span className="font-medium text-foreground">{formatCurrencyFull(selectedInvoice.amount)}</span></p>
+                <p className="text-sm text-muted-foreground">Paid: <span className="font-medium text-green-500">{formatCurrencyFull(selectedInvoice.paid_amount || 0)}</span></p>
+                <p className="text-sm text-muted-foreground">Remaining: <span className="font-medium text-foreground">{formatCurrencyFull(selectedInvoice.amount - (selectedInvoice.paid_amount || 0))}</span></p>
+              </div>
+              <div>
+                <Label className="text-foreground">Payment Amount *</Label>
+                <Input
+                  type="text"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  placeholder="e.g., 50 thousand, 1 lakh"
+                  className="text-foreground"
+                />
+                {paymentForm.amount && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    = {formatCurrencyFull(parseIndianCurrencyInput(paymentForm.amount))}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-foreground">Payment Date</Label>
+                <Input
+                  type="date"
+                  value={paymentForm.payment_date}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+                  className="text-foreground"
+                />
+              </div>
+              <div>
+                <Label className="text-foreground">Payment Method</Label>
+                <Select value={paymentForm.payment_method} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_method: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-foreground">Notes</Label>
+                <Textarea
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  placeholder="Payment notes..."
+                  className="text-foreground"
+                />
+              </div>
+              <Button onClick={handleRecordPayment} className="w-full">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Record Payment
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -550,12 +733,12 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
         </Card>
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Received</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-2xl font-bold text-foreground">{formatCurrencyIndian(totalPaid)}</span>
+              <span className="text-2xl font-bold text-foreground">{formatCurrencyIndian(totalReceived)}</span>
             </div>
           </CardContent>
         </Card>
@@ -592,46 +775,74 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
             </CardContent>
           </Card>
         ) : (
-          filteredInvoices.map((invoice) => (
-            <Card key={invoice.id} className="bg-card border-border hover:border-primary/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-semibold text-foreground">{invoice.invoice_number}</span>
-                      {getStatusBadge(invoice.status)}
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {invoice.projects?.name && <p>Project: {invoice.projects.name}</p>}
-                      <p>Issued: {new Date(invoice.issue_date).toLocaleDateString('en-IN')}</p>
-                      {invoice.due_date && <p>Due: {new Date(invoice.due_date).toLocaleDateString('en-IN')}</p>}
-                      {invoice.description && <p className="line-clamp-1">{invoice.description}</p>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xl font-bold text-foreground">{formatCurrencyFull(invoice.amount)}</span>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => exportToPDF(invoice)} title="Download PDF">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      {canManageFinancials() && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
-                            <Pencil className="h-4 w-4" />
+          filteredInvoices.map((invoice) => {
+            const paidAmount = invoice.paid_amount || 0;
+            const paymentProgress = invoice.amount > 0 ? (paidAmount / invoice.amount) * 100 : 0;
+            const remaining = invoice.amount - paidAmount;
+            
+            return (
+              <Card key={invoice.id} className="bg-card border-border hover:border-primary/50 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-semibold text-foreground">{invoice.invoice_number}</span>
+                          {getStatusBadge(invoice.status)}
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          {invoice.projects?.name && <p>Project: {invoice.projects.name}</p>}
+                          <p>Issued: {new Date(invoice.issue_date).toLocaleDateString('en-IN')}</p>
+                          {invoice.due_date && <p>Due: {new Date(invoice.due_date).toLocaleDateString('en-IN')}</p>}
+                          {invoice.description && <p className="line-clamp-1">{invoice.description}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <span className="text-xl font-bold text-foreground">{formatCurrencyFull(invoice.amount)}</span>
+                          {paidAmount > 0 && paidAmount < invoice.amount && (
+                            <p className="text-xs text-green-500">Paid: {formatCurrencyFull(paidAmount)}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => exportToPDF(invoice)} title="Download PDF">
+                            <Download className="h-4 w-4" />
                           </Button>
-                          {userRole === 'chief_architect' && (
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(invoice.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                          {canManageFinancials() && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                            <Button variant="ghost" size="icon" onClick={() => openPaymentDialog(invoice)} title="Record Payment">
+                              <CreditCard className="h-4 w-4 text-green-500" />
                             </Button>
                           )}
-                        </>
-                      )}
+                          {canManageFinancials() && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              {userRole === 'chief_architect' && (
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(invoice.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    {/* Payment Progress */}
+                    {paidAmount > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Payment Progress</span>
+                          <span>{Math.round(paymentProgress)}% ({remaining > 0 ? `${formatCurrencyIndian(remaining)} remaining` : 'Fully Paid'})</span>
+                        </div>
+                        <Progress value={paymentProgress} className="h-2" />
+                      </div>
+                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
