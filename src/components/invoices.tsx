@@ -135,6 +135,27 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   // Alias for backward compatibility
   const formatCurrency = formatCurrencyFull;
 
+  // Parse Indian currency input (e.g., "5 lakh", "2.5 crore", "50 thousand", "50L", "2Cr")
+  const parseIndianCurrencyInput = (input: string): number => {
+    const cleanInput = input.trim().toLowerCase().replace(/,/g, '');
+    
+    // Check for crore/cr patterns
+    const croreMatch = cleanInput.match(/^([\d.]+)\s*(crore|cr)s?$/);
+    if (croreMatch) return parseFloat(croreMatch[1]) * 10000000;
+    
+    // Check for lakh/lac/l patterns
+    const lakhMatch = cleanInput.match(/^([\d.]+)\s*(lakh|lac|l)s?$/);
+    if (lakhMatch) return parseFloat(lakhMatch[1]) * 100000;
+    
+    // Check for thousand/k patterns
+    const thousandMatch = cleanInput.match(/^([\d.]+)\s*(thousand|k)s?$/);
+    if (thousandMatch) return parseFloat(thousandMatch[1]) * 1000;
+    
+    // Plain number
+    const plainNumber = parseFloat(cleanInput);
+    return isNaN(plainNumber) ? 0 : plainNumber;
+  };
+
   const exportToPDF = (invoice: Invoice) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -279,7 +300,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       const invoiceData = {
         project_id: form.project_id || null,
         invoice_number: form.invoice_number,
-        amount: parseFloat(form.amount),
+        amount: parseIndianCurrencyInput(form.amount),
         status: form.status,
         issue_date: form.issue_date,
         due_date: form.due_date || null,
@@ -412,12 +433,17 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                 <div>
                   <Label className="text-foreground">Amount (INR) *</Label>
                   <Input
-                    type="number"
+                    type="text"
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    placeholder="0.00"
+                    placeholder="e.g., 5 lakh, 2.5 crore, 50 thousand"
                     className="text-foreground"
                   />
+                  {form.amount && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      = {formatCurrencyFull(parseIndianCurrencyInput(form.amount))}
+                    </p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
