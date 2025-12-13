@@ -18,7 +18,7 @@ const App = () => <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} className="bg-[#447793]" />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/search" element={<SearchGallery />} />
