@@ -476,7 +476,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   });
 
   const totalBilled = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const totalReceived = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+  const totalReceived = invoices.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
   const totalOutstanding = invoices.filter((inv) => inv.status !== 'cancelled').reduce((sum, inv) => sum + inv.amount - (inv.paid_amount || 0), 0);
 
   if (loading) {
