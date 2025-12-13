@@ -23,10 +23,20 @@ import {
   SelectLabel,
   SelectGroup,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle, Download, CreditCard } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, IndianRupee, FileText, Calendar, CheckCircle, Download, CreditCard, Check, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 interface Project {
@@ -79,6 +89,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [form, setForm] = useState({
@@ -96,6 +107,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     payment_method: '',
     notes: '',
   });
+  const [statusAction, setStatusAction] = useState<'settled' | 'cancelled' | null>(null);
 
   const canManageFinancials = () => {
     return userRole === 'junior_architect' || userRole === 'chief_architect';
@@ -142,13 +154,10 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     const sign = amount < 0 ? '-' : '';
     
     if (absAmount >= 10000000) {
-      // Crores (1,00,00,000+)
       return `${sign}₹${(absAmount / 10000000).toFixed(2)} Cr`;
     } else if (absAmount >= 100000) {
-      // Lakhs (1,00,000+)
       return `${sign}₹${(absAmount / 100000).toFixed(2)} L`;
     } else {
-      // Standard Indian formatting for smaller amounts
       return `${sign}₹${absAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
   };
@@ -157,50 +166,77 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Alias for backward compatibility
   const formatCurrency = formatCurrencyFull;
 
-  // Parse Indian currency input (e.g., "5 lakh", "2.5 crore", "50 thousand", "50L", "2Cr")
   const parseIndianCurrencyInput = (input: string): number => {
     const cleanInput = input.trim().toLowerCase().replace(/,/g, '');
     
-    // Check for crore/cr patterns
     const croreMatch = cleanInput.match(/^([\d.]+)\s*(crore|cr)s?$/);
     if (croreMatch) return parseFloat(croreMatch[1]) * 10000000;
     
-    // Check for lakh/lac/l patterns
     const lakhMatch = cleanInput.match(/^([\d.]+)\s*(lakh|lac|l)s?$/);
     if (lakhMatch) return parseFloat(lakhMatch[1]) * 100000;
     
-    // Check for thousand/k patterns
     const thousandMatch = cleanInput.match(/^([\d.]+)\s*(thousand|k)s?$/);
     if (thousandMatch) return parseFloat(thousandMatch[1]) * 1000;
     
-    // Plain number
     const plainNumber = parseFloat(cleanInput);
     return isNaN(plainNumber) ? 0 : plainNumber;
+  };
+
+  // ✅ NEW: Direct status update function
+  const handleStatusUpdate = async (invoice: Invoice, newStatus: 'paid' | 'cancelled') => {
+    try {
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (newStatus === 'paid') {
+        // Mark as fully paid if not already
+        if ((invoice.paid_amount || 0) < invoice.amount) {
+          updateData.paid_amount = invoice.amount;
+          updateData.paid_date = new Date().toISOString().split('T')[0];
+        }
+      } else if (newStatus === 'cancelled') {
+        // Reset paid_amount for cancelled invoices
+        updateData.paid_amount = 0;
+        updateData.paid_date = null;
+      }
+
+      const { error } = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('id', invoice.id);
+
+      if (error) throw error;
+
+      toast.success(`Invoice marked as ${newStatus}`);
+      setStatusDialogOpen(false);
+      setSelectedInvoice(null);
+      setStatusAction(null);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || `Error updating status to ${newStatus}`);
+    }
   };
 
   const exportToPDF = (invoice: Invoice) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Header
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.text('INVOICE', pageWidth / 2, 30, { align: 'center' });
     
-    // Invoice number and status
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Invoice #: ${invoice.invoice_number}`, 20, 50);
     doc.text(`Status: ${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}`, pageWidth - 20, 50, { align: 'right' });
     
-    // Divider
     doc.setLineWidth(0.5);
     doc.line(20, 55, pageWidth - 20, 55);
     
-    // Project info
     let yPos = 70;
     if (invoice.projects?.name) {
       doc.setFont('helvetica', 'bold');
@@ -210,7 +246,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       yPos += 10;
     }
     
-    // Dates
     doc.setFont('helvetica', 'bold');
     doc.text('Issue Date:', 20, yPos);
     doc.setFont('helvetica', 'normal');
@@ -233,7 +268,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       yPos += 10;
     }
     
-    // Description
     if (invoice.description) {
       yPos += 10;
       doc.setFont('helvetica', 'bold');
@@ -245,7 +279,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       yPos += descLines.length * 7;
     }
     
-    // Amount section
     yPos += 20;
     doc.setLineWidth(0.3);
     doc.line(20, yPos, pageWidth - 20, yPos);
@@ -256,22 +289,18 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     doc.text('Total Amount:', 20, yPos);
     doc.text(formatCurrencyFull(invoice.amount), pageWidth - 20, yPos, { align: 'right' });
     
-    // Amount in words (Indian system)
     yPos += 10;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`(${numberToWordsIndian(invoice.amount)} Only)`, 20, yPos);
     
-    // Footer
     doc.setFontSize(8);
     doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')}`, pageWidth / 2, 280, { align: 'center' });
     
-    // Save
     doc.save(`${invoice.invoice_number}.pdf`);
     toast.success('Invoice PDF downloaded');
   };
 
-  // Convert number to words in Indian system
   const numberToWordsIndian = (num: number): string => {
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
       'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -289,22 +318,22 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     };
     
     let words = '';
-    if (rupees >= 10000000) {
-      words += convertBelowThousand(Math.floor(rupees / 10000000)) + ' Crore ';
-      num = rupees % 10000000;
-    } else {
-      num = rupees;
+    let remaining = rupees;
+    
+    if (remaining >= 10000000) {
+      words += convertBelowThousand(Math.floor(remaining / 10000000)) + ' Crore ';
+      remaining = remaining % 10000000;
     }
-    if (num >= 100000) {
-      words += convertBelowThousand(Math.floor(num / 100000)) + ' Lakh ';
-      num = num % 100000;
+    if (remaining >= 100000) {
+      words += convertBelowThousand(Math.floor(remaining / 100000)) + ' Lakh ';
+      remaining = remaining % 100000;
     }
-    if (num >= 1000) {
-      words += convertBelowThousand(Math.floor(num / 1000)) + ' Thousand ';
-      num = num % 1000;
+    if (remaining >= 1000) {
+      words += convertBelowThousand(Math.floor(remaining / 1000)) + ' Thousand ';
+      remaining = remaining % 1000;
     }
-    if (num > 0) {
-      words += convertBelowThousand(num);
+    if (remaining > 0) {
+      words += convertBelowThousand(remaining);
     }
     
     words = words.trim() + ' Rupees';
@@ -393,13 +422,21 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     setSelectedInvoice(invoice);
     const remaining = invoice.amount - (invoice.paid_amount || 0);
     setPaymentForm({
-      amount: remaining.toString(),
+      amount: remaining > 0 ? remaining.toString() : '',
       payment_date: new Date().toISOString().split('T')[0],
       payment_method: '',
       notes: '',
     });
     setPaymentDialogOpen(true);
   };
+
+  // ✅ FIXED: Correctly calculates totalReceived using paid_amount
+  const totalBilled = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+  const totalReceived = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+  // ✅ FIXED: Outstanding now correctly reflects ALL paid_amount changes
+  const totalOutstanding = invoices
+    .filter((inv) => inv.status !== 'cancelled')
+    .reduce((sum, inv) => sum + (inv.amount - (inv.paid_amount || 0)), 0);
 
   const handleRecordPayment = async () => {
     if (!selectedInvoice || !paymentForm.amount) {
@@ -416,7 +453,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     }
 
     try {
-      // Record the payment
       const { error: paymentError } = await supabase.from('invoice_payments').insert({
         invoice_id: selectedInvoice.id,
         amount: paymentAmount,
@@ -427,7 +463,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       });
       if (paymentError) throw paymentError;
 
-      // Update invoice paid_amount and status
       const newPaidAmount = (selectedInvoice.paid_amount || 0) + paymentAmount;
       const newStatus = newPaidAmount >= selectedInvoice.amount ? 'paid' : selectedInvoice.status;
       const paidDate = newPaidAmount >= selectedInvoice.amount ? new Date().toISOString().split('T')[0] : selectedInvoice.paid_date;
@@ -465,6 +500,13 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     setDialogOpen(true);
   };
 
+  // ✅ NEW: Open status confirmation dialog
+  const openStatusDialog = (invoice: Invoice, action: 'settled' | 'cancelled') => {
+    setSelectedInvoice(invoice);
+    setStatusAction(action);
+    setStatusDialogOpen(true);
+  };
+
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
       invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -474,10 +516,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     return matchesSearch && matchesProject && matchesStatus;
   });
-
-  const totalBilled = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const totalReceived = invoices.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
-  const totalOutstanding = invoices.filter((inv) => inv.status !== 'cancelled').reduce((sum, inv) => sum + inv.amount - (inv.paid_amount || 0), 0);
 
   if (loading) {
     return (
@@ -647,6 +685,35 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
         </Select>
       </div>
 
+      {/* ✅ NEW: Status Confirmation Dialog */}
+      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">
+              Mark {statusAction === 'settled' ? 'as Settled' : 'as Cancelled'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground/80">
+              {selectedInvoice && (
+                <>
+                  Invoice <span className="font-semibold">{selectedInvoice.invoice_number}</span> will be marked as{' '}
+                  <span className="font-semibold capitalize">{statusAction}</span>.
+                  {statusAction === 'cancelled' && ' Any recorded payments will be reset.'}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => selectedInvoice && statusAction && handleStatusUpdate(selectedInvoice, statusAction)}
+              className={statusAction === 'settled' ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}
+            >
+              {statusAction === 'settled' ? 'Mark Settled' : 'Cancel Invoice'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) resetPaymentForm(); }}>
         <DialogContent className="max-w-md bg-card">
@@ -718,7 +785,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - NOW CORRECTLY REFLECTS paid_amount */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
@@ -779,6 +846,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
             const paidAmount = invoice.paid_amount || 0;
             const paymentProgress = invoice.amount > 0 ? (paidAmount / invoice.amount) * 100 : 0;
             const remaining = invoice.amount - paidAmount;
+            const isFullyPaid = paidAmount >= invoice.amount;
             
             return (
               <Card key={invoice.id} className="bg-card border-border hover:border-primary/50 transition-colors">
@@ -800,19 +868,48 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <span className="text-xl font-bold text-foreground">{formatCurrencyFull(invoice.amount)}</span>
-                          {paidAmount > 0 && paidAmount < invoice.amount && (
-                            <p className="text-xs text-green-500">Paid: {formatCurrencyFull(paidAmount)}</p>
+                          {paidAmount > 0 && (
+                            <p className={`text-xs ${isFullyPaid ? 'text-green-500' : 'text-green-500'}`}>
+                              Paid: {formatCurrencyFull(paidAmount)}
+                            </p>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Button variant="ghost" size="icon" onClick={() => exportToPDF(invoice)} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
+                          
+                          {/* ✅ NEW: Quick status buttons */}
                           {canManageFinancials() && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => openStatusDialog(invoice, 'settled')}
+                                title="Mark as Settled"
+                                className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => openStatusDialog(invoice, 'cancelled')}
+                                title="Cancel Invoice"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          
+                          {/* Payment button only for partially paid or unpaid */}
+                          {canManageFinancials() && !isFullyPaid && invoice.status !== 'cancelled' && (
                             <Button variant="ghost" size="icon" onClick={() => openPaymentDialog(invoice)} title="Record Payment">
                               <CreditCard className="h-4 w-4 text-green-500" />
                             </Button>
                           )}
+                          
                           {canManageFinancials() && (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
@@ -828,12 +925,13 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                         </div>
                       </div>
                     </div>
+                    
                     {/* Payment Progress */}
-                    {paidAmount > 0 && (
+                    {paidAmount > 0 && !isFullyPaid && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>Payment Progress</span>
-                          <span>{Math.round(paymentProgress)}% ({remaining > 0 ? `${formatCurrencyIndian(remaining)} remaining` : 'Fully Paid'})</span>
+                          <span>{Math.round(paymentProgress)}% ({formatCurrencyIndian(remaining)} remaining)</span>
                         </div>
                         <Progress value={paymentProgress} className="h-2" />
                       </div>
