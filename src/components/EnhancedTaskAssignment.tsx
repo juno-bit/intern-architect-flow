@@ -411,7 +411,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50 text-white">
+                    <SelectContent className="bg-popover border border-border z-50">
                       <SelectItem value="low">Low</SelectItem>
                       <SelectItem value="medium">Medium</SelectItem>
                       <SelectItem value="high">High</SelectItem>
@@ -429,7 +429,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     <SelectTrigger>
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50 text-white">
+                    <SelectContent className="bg-popover border border-border z-50">
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
@@ -441,7 +441,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     <SelectTrigger>
                       <SelectValue placeholder="Assign to" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50 text-white">
+                    <SelectContent className="bg-popover border border-border z-50">
                       {userRole !== 'chief_architect' && <SelectItem value="self">Self</SelectItem>}
                       {assignableUsers.map((user) => (
                         <SelectItem key={user.user_id} value={user.user_id}>
