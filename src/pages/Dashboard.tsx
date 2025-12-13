@@ -15,7 +15,7 @@ import TasksTable from '@/components/TasksTable';
 import DeadlineAlertsTab from '@/components/DeadlineAlertsTab';
 import { ProjectGallery } from '@/components/ProjectGallery';
 import { EnhancedTaskAssignment } from '@/components/EnhancedTaskAssignment';
-import ImageUploadForm from '@/components/ImageUploadForm';
+
 import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 import MeetingsTab from '@/components/MeetingsTab';
 import DocumentsTab from '@/components/DocumentsTab';
@@ -435,18 +435,11 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="gallery" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <ImageUploadForm userId={user?.id || ''} onUploadComplete={() => window.location.reload()} />
-              </div>
-              <div className="lg:col-span-2">
-                <ProjectGallery 
-                  projectId="" 
-                  userId={user?.id || ''} 
-                  userRole={profile?.role || ''} 
-                />
-              </div>
-            </div>
+            <ProjectGallery 
+              projectId="" 
+              userId={user?.id || ''} 
+              userRole={profile?.role || ''} 
+            />
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">

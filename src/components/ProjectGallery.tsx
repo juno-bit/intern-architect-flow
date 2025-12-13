@@ -71,7 +71,8 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
     phase: "Planning",
     category: "Progress",
     projectId: selectedProject,
-    taskId: ""
+    taskId: "",
+    captureDate: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
@@ -178,7 +179,8 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
           uploaded_by: userId,
           file_path: filePath,
           file_size: file.size,
-          mime_type: file.type
+          mime_type: file.type,
+          capture_date: uploadData.captureDate
         });
 
       if (dbError) throw dbError;
@@ -191,7 +193,8 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
         phase: "Planning",
         category: "Progress",
         projectId: selectedProject,
-        taskId: ""
+        taskId: "",
+        captureDate: new Date().toISOString().split('T')[0]
       });
       fetchImages();
     } catch (error: any) {
@@ -396,6 +399,14 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Capture Date</label>
+                    <Input
+                      type="date"
+                      value={uploadData.captureDate}
+                      onChange={(e) => setUploadData({ ...uploadData, captureDate: e.target.value })}
+                    />
                   </div>
                   <Input
                     type="file"
