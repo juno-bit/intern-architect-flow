@@ -10,18 +10,15 @@ import Dashboard from "./pages/Dashboard";
 import Gallery from "./pages/Gallery";
 import SearchGallery from "./pages/SearchGallery";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} className="bg-[#447793]" />
           <Route path="/auth" element={<Auth />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/search" element={<SearchGallery />} />
@@ -30,7 +27,5 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
-
+  </QueryClientProvider>;
 export default App;
