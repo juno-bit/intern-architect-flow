@@ -4,7 +4,6 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  base: "intern-architect-flow", // <= important for GitHub Pages
   server: {
     host: "::",
     port: 8080,
