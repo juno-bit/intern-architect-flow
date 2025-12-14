@@ -400,11 +400,38 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
             </DialogHeader>
             <div className="p-6 max-h-[70vh] overflow-auto">
               {previewUrl ? (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[60vh] border-0 rounded-lg shadow-lg"
-                  title="Document Preview"
-                />
+                <div className="space-y-4">
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(previewUrl, '_blank')}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Open in Browser
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewUrl;
+                        link.download = '';
+                        link.click();
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download File
+                    </Button>
+                  </div>
+                  <iframe
+                    src={previewUrl}
+                    sandbox="allow-same-origin allow-scripts"
+                    className="w-full h-[55vh] border-0 rounded-lg shadow-lg bg-white"
+                    title="Document Preview"
+                  />
+                  <p className="text-xs text-center text-muted-foreground">
+                    If the preview doesn't load, use "Open in Browser" button above
+                  </p>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
                   Preview not available for this file type

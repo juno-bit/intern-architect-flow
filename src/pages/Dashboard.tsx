@@ -484,30 +484,113 @@ export default function Dashboard() {
 
               <TabsContent value="reports" className="space-y-6">
                 <h2 className="text-xl font-semibold">Progress Reports</h2>
+                
+                {/* Overall Team Summary */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Team Performance Overview</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="text-center p-4 bg-muted/30 rounded-lg">
                         <div className="text-3xl font-bold text-primary">
                           {tasks.filter(t => t.status === 'completed').length}
                         </div>
-                        <p className="text-muted-foreground">Completed Tasks</p>
+                        <p className="text-muted-foreground">Completed</p>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center p-4 bg-muted/30 rounded-lg">
                         <div className="text-3xl font-bold text-yellow-500">
                           {tasks.filter(t => t.status === 'in_progress').length}
                         </div>
                         <p className="text-muted-foreground">In Progress</p>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center p-4 bg-muted/30 rounded-lg">
+                        <div className="text-3xl font-bold text-blue-500">
+                          {tasks.filter(t => t.status === 'pending').length}
+                        </div>
+                        <p className="text-muted-foreground">Pending</p>
+                      </div>
+                      <div className="text-center p-4 bg-muted/30 rounded-lg">
                         <div className="text-3xl font-bold text-red-500">
                           {tasks.filter(t => t.status === 'overdue').length}
                         </div>
-                        <p className="text-muted-foreground">Overdue Tasks</p>
+                        <p className="text-muted-foreground">Overdue</p>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Individual Employee Reports */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Individual Employee Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {teamMembers.map(member => {
+                        const memberTasks = tasks.filter(t => t.assigned_to === member.user_id);
+                        const completedTasks = memberTasks.filter(t => t.status === 'completed').length;
+                        const inProgressTasks = memberTasks.filter(t => t.status === 'in_progress').length;
+                        const pendingTasks = memberTasks.filter(t => t.status === 'pending').length;
+                        const overdueTasks = memberTasks.filter(t => t.status === 'overdue').length;
+                        const totalTasks = memberTasks.length;
+                        const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                        
+                        return (
+                          <div key={member.user_id} className="p-4 border border-border rounded-lg hover:bg-muted/20 transition-colors">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-foreground">{member.full_name}</span>
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {member.role.replace('_', ' ')}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{member.email}</p>
+                              </div>
+                              
+                              <div className="grid grid-cols-5 gap-3 text-center">
+                                <div className="p-2 bg-muted/30 rounded">
+                                  <div className="text-lg font-bold text-foreground">{totalTasks}</div>
+                                  <p className="text-xs text-muted-foreground">Total</p>
+                                </div>
+                                <div className="p-2 bg-green-500/10 rounded">
+                                  <div className="text-lg font-bold text-green-500">{completedTasks}</div>
+                                  <p className="text-xs text-muted-foreground">Done</p>
+                                </div>
+                                <div className="p-2 bg-yellow-500/10 rounded">
+                                  <div className="text-lg font-bold text-yellow-500">{inProgressTasks}</div>
+                                  <p className="text-xs text-muted-foreground">Active</p>
+                                </div>
+                                <div className="p-2 bg-blue-500/10 rounded">
+                                  <div className="text-lg font-bold text-blue-500">{pendingTasks}</div>
+                                  <p className="text-xs text-muted-foreground">Pending</p>
+                                </div>
+                                <div className="p-2 bg-red-500/10 rounded">
+                                  <div className="text-lg font-bold text-red-500">{overdueTasks}</div>
+                                  <p className="text-xs text-muted-foreground">Overdue</p>
+                                </div>
+                              </div>
+                              
+                              <div className="w-24 text-center">
+                                <div className={`text-xl font-bold ${completionRate >= 70 ? 'text-green-500' : completionRate >= 40 ? 'text-yellow-500' : 'text-red-500'}`}>
+                                  {completionRate}%
+                                </div>
+                                <p className="text-xs text-muted-foreground">Completion</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {teamMembers.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No team members found
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
