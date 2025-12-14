@@ -86,16 +86,28 @@ export default function Auth() {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle specific error cases
+          if (error.message.includes('User already registered')) {
+            toast({
+              title: 'Account Exists',
+              description: 'This email is already registered. Please sign in instead.',
+              variant: 'destructive',
+            });
+            setIsLogin(true);
+            return;
+          }
+          throw error;
+        }
 
         toast({
           title: 'Success',
-          description: 'Account created! For testing, you can skip email verification by signing in directly.',
+          description: 'Account created! You can now sign in with your credentials.',
         });
 
         // Auto switch to login mode after signup
         setIsLogin(true);
-        setEmail('');
+        // Keep email for convenience
         setPassword('');
         setFullName('');
       }

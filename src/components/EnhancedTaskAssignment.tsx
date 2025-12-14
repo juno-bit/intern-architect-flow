@@ -455,6 +455,8 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                   <Input
                     placeholder="Estimated hours"
                     type="number"
+                    min="0"
+                    step="0.5"
                     value={newTask.estimated_hours}
                     onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
                   />
