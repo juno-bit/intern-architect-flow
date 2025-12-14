@@ -705,7 +705,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => selectedInvoice && statusAction && handleStatusUpdate(selectedInvoice, statusAction)}
+              onClick={() => selectedInvoice && statusAction && handleStatusUpdate(selectedInvoice, statusAction === 'settled' ? 'paid' : 'cancelled')}
               className={statusAction === 'settled' ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}
             >
               {statusAction === 'settled' ? 'Mark Settled' : 'Cancel Invoice'}
