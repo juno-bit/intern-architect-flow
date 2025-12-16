@@ -80,12 +80,13 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
     assigned_to: "",
     estimated_hours: "",
     task_phase: "",
+    self_assigned: false
   });
 
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -96,7 +97,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
           fetchMyTasks(),
           fetchCreatedTasks(),
           fetchCompletedTasks(),
-          fetchAllTasks(),
+          fetchAvailableTasks(),
           fetchClearances(),
           fetchProjects(),
           fetchAssignableUsers()
@@ -165,6 +166,12 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         .eq("status", "completed")
         .order("completed_at", { ascending: false });
 
+      if (userRole === "intern") {
+        query = query.eq("assigned_to", userId);
+      } else if (userRole === "junior_architect") {
+        query = query.or(`assigned_to.eq.${userId},created_by.eq.${userId}`);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       setCompletedTasks((data || []) as unknown as Task[]);
@@ -173,7 +180,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
     }
   };
 
-  const fetchAllTasks = async () => {
+  const fetchAvailableTasks = async () => {
     try {
       let query = supabase
         .from("tasks")
@@ -185,11 +192,15 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         .neq("status", "completed")
         .order("created_at", { ascending: false });
 
+      if (userRole === "intern") {
+        query = query.is("assigned_to", null);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
-      setAllTasks((data || []) as unknown as Task[]);
+      setAvailableTasks((data || []) as unknown as Task[]);
     } catch (error) {
-      console.error("Error fetching all tasks:", error);
+      console.error("Error fetching available tasks:", error);
     }
   };
 
@@ -213,14 +224,12 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
 
   const fetchProjects = async () => {
     try {
-      // Fetch ALL projects - no restrictions for self-assignment
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id, name")
-        .order("name");
+      const { data, error } = await supabase.rpc("get_user_assignable_projects", {
+        user_uuid: userId
+      });
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects((data || []).map(p => ({ id: p.project_id, name: p.project_name })));
     } catch (error) {
       console.error("Error fetching projects:", error);
     }
@@ -241,20 +250,17 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
 
   const handleCreateTask = async () => {
     try {
-      // Clean self-assignment logic - assign directly to userId when "self" selected
-      const assignedToUserId = newTask.assigned_to === "self" ? userId : newTask.assigned_to || null;
-      
       const taskData = {
         title: newTask.title,
         description: newTask.description,
         priority: newTask.priority as "low" | "medium" | "high" | "urgent",
         due_date: newTask.due_date || null,
         project_id: newTask.project_id || null,
-        assigned_to: assignedToUserId,
+        assigned_to: newTask.assigned_to === "self" ? userId : newTask.assigned_to || null,
         created_by: userId,
         estimated_hours: newTask.estimated_hours ? parseFloat(newTask.estimated_hours) : null,
         task_phase: newTask.task_phase || null,
-        self_assigned: newTask.assigned_to === "self"
+        self_assigned: newTask.assigned_to === "self" || newTask.self_assigned
       };
 
       const { error } = await supabase.from("tasks").insert(taskData);
@@ -271,10 +277,11 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         assigned_to: "",
         estimated_hours: "",
         task_phase: "",
+        self_assigned: false
       });
       fetchMyTasks();
       fetchCreatedTasks();
-      fetchAllTasks();
+      fetchAvailableTasks();
     } catch (error: any) {
       console.error("Error creating task:", error);
       toast.error("Failed to create task: " + error.message);
@@ -338,7 +345,6 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
       toast.success("Task marked as complete!");
       fetchMyTasks();
       fetchCompletedTasks();
-      fetchAllTasks();
     } catch (error: any) {
       console.error("Error completing task:", error);
       toast.error("Failed to mark task as complete: " + error.message);
@@ -421,7 +427,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                 <div className="grid grid-cols-2 gap-4">
                   <Select value={newTask.project_id} onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select project (any allowed)" />
+                      <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border border-border z-50">
                       {projects.map((project) => (
@@ -436,7 +442,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       <SelectValue placeholder="Assign to" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border border-border z-50">
-                      {(userRole === "junior_architect" || userRole === "intern") && <SelectItem value="self">Self</SelectItem>}
+                      {userRole !== 'chief_architect' && <SelectItem value="self">Self</SelectItem>}
                       {assignableUsers.map((user) => (
                         <SelectItem key={user.user_id} value={user.user_id}>
                           {user.full_name} ({user.role})
@@ -477,7 +483,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
           <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
           {userRole !== "intern" && <TabsTrigger value="created-tasks">Created Tasks</TabsTrigger>}
           <TabsTrigger value="clearances">Clearances</TabsTrigger>
-          <TabsTrigger value="all-tasks">All Tasks</TabsTrigger>
+          <TabsTrigger value="available-tasks">{userRole === "intern" ? "Available Tasks" : "All Tasks"}</TabsTrigger>
           <TabsTrigger value="completed-tasks">Completed Tasks</TabsTrigger>
         </TabsList>
 
@@ -499,7 +505,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       <div className="flex-1">
                         <h4 className="font-semibold">{task.title}</h4>
                         <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-                        <div className="flex flex-wrap gap-2 mt-3">
+                         <div className="flex flex-wrap gap-2 mt-3">
                           <Badge className={`${getStatusColor(task.status)} text-white border-0`}>{task.status}</Badge>
                           <Badge className={`${getPriorityColor(task.priority)} text-white border-0`}>{task.priority}</Badge>
                           {task.projects?.name && (
@@ -585,6 +591,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
 
         <TabsContent value="clearances" className="space-y-4">
           {userRole === 'chief_architect' ? (
+            // Chief architects see only approval interface
             <div className="space-y-4">
               <h3 className="text-xl font-semibold">Pending Clearances to Review</h3>
               {pendingClearances.length === 0 ? (
@@ -644,6 +651,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
               )}
             </div>
           ) : (
+            // Other roles see request form and their pending clearances
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ClearanceRequestForm userId={userId} userRole={userRole} />
               
@@ -686,18 +694,53 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
           )}
         </TabsContent>
 
-        <TabsContent value="all-tasks" className="space-y-4">
-          <h3 className="text-lg font-semibold">All Active Tasks (Everyone's Tasks)</h3>
-          {allTasks.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No active tasks.</p>
-              </CardContent>
-            </Card>
+        <TabsContent value="available-tasks" className="space-y-4">
+          <h3 className="text-lg font-semibold">
+            {userRole === "intern" ? "Available Tasks for Self-Assignment" : "All Tasks Overview"}
+          </h3>
+          {userRole === "intern" ? (
+            availableTasks.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No available tasks for self-assignment.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {availableTasks.map((task) => (
+                  <Card key={task.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{task.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <Badge className={`${getStatusColor(task.status)} text-white border-0`}>{task.status}</Badge>
+                            <Badge className={`${getPriorityColor(task.priority)} text-white border-0`}>{task.priority}</Badge>
+                            {task.projects?.name && (
+                              <Badge className="bg-blue-500 text-white border-0">{task.projects.name}</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => {
+                            toast.success("Feature coming soon!");
+                          }}
+                        >
+                          Self-Assign
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
           ) : (
             <div className="grid gap-4">
-              {allTasks.slice(0, 15).map((task) => (
+              {availableTasks.slice(0, 10).map((task) => (
                 <Card key={task.id}>
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
@@ -710,18 +753,10 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                           {task.projects?.name && (
                             <Badge className="bg-blue-500 text-white border-0">{task.projects.name}</Badge>
                           )}
-                          {task.self_assigned && (
-                            <Badge variant="secondary">Self-assigned</Badge>
-                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Assigned to: {task.profiles?.full_name || "Unassigned"} | Created by: {task.created_by}
+                          Assigned to: {task.profiles?.full_name || "Unassigned"}
                         </p>
-                        {task.due_date && (
-                          <p className="text-xs text-muted-foreground">
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </CardContent>
