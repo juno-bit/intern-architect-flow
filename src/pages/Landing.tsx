@@ -20,34 +20,20 @@ export default function Landing() {
         <p className="text-xl">Welcome to WI Project Management</p>
       </header>
 
-      <nav className="flex justify-center flex-wrap gap-4 w-full max-w-2xl">
+      <nav className="flex justify-center flex-wrap gap-4 w-full max-w-md">
         <Button 
           onClick={() => navigate('/auth')} 
           variant="outline" 
-          className="text-lg px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
+          className="text-lg px-8 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
         >
           Login
         </Button>
         <Button 
-          onClick={() => navigate('/dashboard')} 
+          onClick={() => navigate('/auth?mode=signup')} 
           variant="outline"
-          className="text-lg px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
+          className="text-lg px-8 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
         >
-          Projects
-        </Button>
-        <Button 
-          onClick={() => navigate('/gallery')} 
-          variant="outline"
-          className="text-lg px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
-        >
-          Project Gallery Uploads
-        </Button>
-        <Button 
-          onClick={() => navigate('/search')} 
-          variant="outline"
-          className="text-lg px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-background"
-        >
-          Gallery
+          Create Account
         </Button>
       </nav>
 
