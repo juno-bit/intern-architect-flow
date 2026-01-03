@@ -255,6 +255,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
   };
 
   const canManageImages = userRole === "chief_architect" || 
+    userRole === "junior_architect" ||
     (projects.find(p => p.id === selectedProject && (p as any).created_by === userId));
 
   const currentProject = projects.find(p => p.id === selectedProject);

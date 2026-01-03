@@ -443,11 +443,13 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     </SelectTrigger>
                     <SelectContent className="bg-popover border border-border z-50">
                       {userRole !== 'chief_architect' && <SelectItem value="self">Self</SelectItem>}
-                      {assignableUsers.map((user) => (
-                        <SelectItem key={user.user_id} value={user.user_id}>
-                          {user.full_name} ({user.role})
-                        </SelectItem>
-                      ))}
+                      {assignableUsers
+                        .filter(user => user.user_id !== userId)
+                        .map((user) => (
+                          <SelectItem key={user.user_id} value={user.user_id}>
+                            {user.full_name} ({user.role})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
