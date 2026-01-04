@@ -475,6 +475,7 @@ export default function Dashboard() {
                   onEditTask={startEditTask}
                   onDeleteTask={deleteTask}
                   onUpdateStatus={updateTaskStatus}
+                  userRole={profile?.role || ''}
                 />
               </TabsContent>
 
