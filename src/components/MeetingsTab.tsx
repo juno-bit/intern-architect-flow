@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Trash2, Calendar, Search, Clock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Edit2, Trash2, Calendar, Search, Clock, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -16,6 +17,8 @@ interface Meeting {
   meeting_date: string;
   description: string;
   notes?: string;
+  agenda?: string;
+  attendees?: string[];
   project_id?: string;
   created_by: string;
   created_at: string;
@@ -32,6 +35,12 @@ interface Project {
   name: string;
 }
 
+interface UserProfile {
+  user_id: string;
+  full_name: string;
+  email: string;
+}
+
 interface MeetingsTabProps {
   userId: string;
   userRole: string;
@@ -40,6 +49,8 @@ interface MeetingsTabProps {
 export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
+  const [currentUserName, setCurrentUserName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
@@ -49,19 +60,21 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
     meeting_date: '',
     meeting_time: '',
     description: '',
+    agenda: '',
     notes: '',
-    project_id: ''
+    project_id: '',
+    attendees: [] as string[]
   });
 
   useEffect(() => {
     fetchMeetings();
     fetchProjects();
+    fetchUsers();
   }, []);
 
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      // Fetch meetings with projects
       const { data: meetingsData, error: meetingsError } = await supabase
         .from('meetings')
         .select(`
@@ -72,14 +85,12 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
 
       if (meetingsError) throw meetingsError;
 
-      // Fetch profiles separately to get creator names
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, full_name');
 
       const profilesMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
 
-      // Combine data
       const meetingsWithProfiles = (meetingsData || []).map(meeting => ({
         ...meeting,
         profiles: { full_name: profilesMap.get(meeting.created_by) || 'Unknown' }
@@ -108,6 +119,66 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .order('full_name');
+
+      if (error) throw error;
+      setAvailableUsers(data || []);
+      
+      // Set current user name
+      const currentUser = data?.find(u => u.user_id === userId);
+      if (currentUser) {
+        setCurrentUserName(currentUser.full_name);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const sendNotifications = async (attendeeIds: string[], meetingDateTime: string) => {
+    const projectName = form.project_id 
+      ? projects.find(p => p.id === form.project_id)?.name 
+      : undefined;
+
+    for (const attendeeId of attendeeIds) {
+      const attendee = availableUsers.find(u => u.user_id === attendeeId);
+      if (!attendee?.email) continue;
+
+      // Create in-app notification
+      try {
+        await supabase.from('notifications').insert({
+          user_id: attendeeId,
+          title: 'Meeting Invitation',
+          message: `You have been added to meeting: ${form.description}`,
+          type: 'deadline_reminder'
+        });
+      } catch (error) {
+        console.error('Error creating notification:', error);
+      }
+
+      // Send email notification
+      try {
+        await supabase.functions.invoke('send-meeting-notification', {
+          body: {
+            to: attendee.email,
+            toName: attendee.full_name,
+            meetingDate: meetingDateTime,
+            description: form.description,
+            agenda: form.agenda || undefined,
+            projectName,
+            creatorName: currentUserName
+          }
+        });
+      } catch (error) {
+        console.error('Error sending email notification:', error);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -118,7 +189,9 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
     const payload = {
       meeting_date: meetingDateTime,
       description: form.description,
+      agenda: form.agenda || null,
       notes: form.notes || null,
+      attendees: form.attendees.length > 0 ? form.attendees : null,
       project_id: form.project_id || null,
       created_by: userId
     };
@@ -131,14 +204,30 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
           .eq('id', editingMeeting.id);
 
         if (error) throw error;
-        toast.success('Meeting updated successfully');
+        
+        // Send notifications to newly added attendees
+        const previousAttendees = editingMeeting.attendees || [];
+        const newAttendees = form.attendees.filter(id => !previousAttendees.includes(id));
+        if (newAttendees.length > 0) {
+          await sendNotifications(newAttendees, meetingDateTime);
+          toast.success(`Meeting updated and ${newAttendees.length} notification(s) sent`);
+        } else {
+          toast.success('Meeting updated successfully');
+        }
       } else {
         const { error } = await supabase
           .from('meetings')
           .insert(payload);
 
         if (error) throw error;
-        toast.success('Meeting created successfully');
+        
+        // Send notifications to all attendees
+        if (form.attendees.length > 0) {
+          await sendNotifications(form.attendees, meetingDateTime);
+          toast.success(`Meeting created and ${form.attendees.length} notification(s) sent`);
+        } else {
+          toast.success('Meeting created successfully');
+        }
       }
 
       resetForm();
@@ -172,8 +261,10 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
       meeting_date: format(meetingDate, 'yyyy-MM-dd'),
       meeting_time: format(meetingDate, 'HH:mm'),
       description: meeting.description,
+      agenda: meeting.agenda || '',
       notes: meeting.notes || '',
-      project_id: meeting.project_id || ''
+      project_id: meeting.project_id || '',
+      attendees: meeting.attendees || []
     });
     setShowModal(true);
   };
@@ -185,13 +276,27 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
       meeting_date: '',
       meeting_time: '',
       description: '',
+      agenda: '',
       notes: '',
-      project_id: ''
+      project_id: '',
+      attendees: []
     });
   };
 
   const canManageMeeting = (meeting: Meeting) => {
     return userRole === 'chief_architect' || meeting.created_by === userId;
+  };
+
+  const toggleAttendee = (attendeeId: string) => {
+    if (form.attendees.includes(attendeeId)) {
+      setForm({ ...form, attendees: form.attendees.filter(id => id !== attendeeId) });
+    } else {
+      setForm({ ...form, attendees: [...form.attendees, attendeeId] });
+    }
+  };
+
+  const getAttendeeName = (attendeeId: string) => {
+    return availableUsers.find(u => u.user_id === attendeeId)?.full_name || 'Unknown';
   };
 
   const filteredMeetings = meetings.filter(meeting => {
@@ -277,9 +382,29 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
                           )}
                         </div>
                         <p className="text-foreground font-medium">{meeting.description}</p>
+                        
+                        {meeting.agenda && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-muted-foreground">Agenda:</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md mt-1">{meeting.agenda}</p>
+                          </div>
+                        )}
+                        
                         {meeting.notes && (
                           <p className="text-sm text-muted-foreground">{meeting.notes}</p>
                         )}
+                        
+                        {meeting.attendees && meeting.attendees.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap mt-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            {meeting.attendees.map(attendeeId => (
+                              <Badge key={attendeeId} variant="outline" className="text-xs">
+                                {getAttendeeName(attendeeId)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        
                         <p className="text-xs text-muted-foreground">
                           Recorded by: {meeting.profiles?.full_name || 'Unknown'}
                         </p>
@@ -312,7 +437,7 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
       </Card>
 
       <Dialog open={showModal} onOpenChange={(open) => !open && resetForm()}>
-        <DialogContent className="bg-card border border-border">
+        <DialogContent className="bg-card border border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingMeeting ? 'Edit Meeting' : 'Add Meeting'}
@@ -349,6 +474,15 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
               />
             </div>
             <div>
+              <label className="text-sm font-medium text-foreground">Agenda (Optional)</label>
+              <Textarea
+                value={form.agenda}
+                onChange={(e) => setForm({ ...form, agenda: e.target.value })}
+                placeholder="Meeting agenda items..."
+                rows={3}
+              />
+            </div>
+            <div>
               <label className="text-sm font-medium text-foreground">Project (Optional)</label>
               <Select value={form.project_id || "none"} onValueChange={(value) => setForm({ ...form, project_id: value === "none" ? "" : value })}>
                 <SelectTrigger>
@@ -363,6 +497,33 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Tag Attendees (will receive email notification)
+              </label>
+              <div className="border border-border rounded-md p-3 max-h-40 overflow-y-auto space-y-2 mt-1 bg-background">
+                {availableUsers.filter(u => u.user_id !== userId).map(user => (
+                  <div key={user.user_id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`user-${user.user_id}`}
+                      checked={form.attendees.includes(user.user_id)}
+                      onCheckedChange={() => toggleAttendee(user.user_id)}
+                    />
+                    <label 
+                      htmlFor={`user-${user.user_id}`} 
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {user.full_name}
+                      <span className="text-muted-foreground text-xs ml-2">({user.email})</span>
+                    </label>
+                  </div>
+                ))}
+                {availableUsers.filter(u => u.user_id !== userId).length === 0 && (
+                  <p className="text-sm text-muted-foreground">No other users available</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Notes (Optional)</label>

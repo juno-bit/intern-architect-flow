@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.send-custom-alert]
 verify_jwt = true
+
+[functions.send-meeting-notification]
+verify_jwt = true
