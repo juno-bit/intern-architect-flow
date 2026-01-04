@@ -297,6 +297,7 @@ export type Database = {
       }
       meetings: {
         Row: {
+          agenda: string | null
           attendees: string[] | null
           created_at: string
           created_by: string
@@ -308,6 +309,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agenda?: string | null
           attendees?: string[] | null
           created_at?: string
           created_by: string
@@ -319,6 +321,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agenda?: string | null
           attendees?: string[] | null
           created_at?: string
           created_by?: string
