@@ -442,7 +442,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       <SelectValue placeholder="Assign to" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border border-border z-50">
-                      {userRole !== 'chief_architect' && <SelectItem value="self">Self</SelectItem>}
+                      <SelectItem value="self">Self</SelectItem>
                       {assignableUsers
                         .filter(user => user.user_id !== userId)
                         .map((user) => (

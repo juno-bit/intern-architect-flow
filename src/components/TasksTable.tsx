@@ -31,9 +31,10 @@ interface TasksTableProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onUpdateStatus: (taskId: string, status: Task['status']) => void;
+  userRole: string;
 }
 
-export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateStatus }: TasksTableProps) {
+export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateStatus, userRole }: TasksTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -265,19 +266,25 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Select 
-                        value={task.status} 
-                        onValueChange={(value) => onUpdateStatus(task.id, value as Task['status'])}
-                      >
-                        <SelectTrigger className="w-28 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {userRole !== 'chief_architect' ? (
+                        <Select 
+                          value={task.status} 
+                          onValueChange={(value) => onUpdateStatus(task.id, value as Task['status'])}
+                        >
+                          <SelectTrigger className="w-28 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className={`${getStatusColor(task.status)} text-white w-28 justify-center`}>
+                          {task.status.replace('_', ' ')}
+                        </Badge>
+                      )}
                       
                       <Button
                         size="sm"
