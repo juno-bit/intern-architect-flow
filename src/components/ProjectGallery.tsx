@@ -256,6 +256,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
 
   const canManageImages = userRole === "chief_architect" || 
     userRole === "junior_architect" ||
+    userRole === "intern" ||
     (projects.find(p => p.id === selectedProject && (p as any).created_by === userId));
 
   const currentProject = projects.find(p => p.id === selectedProject);
@@ -447,7 +448,7 @@ export const ProjectGallery = ({ projectId, userId, userRole }: ProjectGalleryPr
                     Featured
                   </Badge>
                 )}
-                {canManageImages && (
+                {(userRole === 'intern' ? image.uploaded_by === userId : canManageImages) && (
                   <div className="absolute top-2 right-2">
                     <div className="flex gap-1 bg-black/70 backdrop-blur-sm rounded p-1.5">
                       <Button

@@ -351,6 +351,31 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
     }
   };
 
+  const handleUpdateTaskStatus = async (taskId: string, status: "pending" | "in_progress" | "completed" | "overdue") => {
+    try {
+      const updateData: { status: "pending" | "in_progress" | "completed" | "overdue"; completed_at: string | null } = { 
+        status, 
+        completed_at: null 
+      };
+      if (status === 'completed') {
+        updateData.completed_at = new Date().toISOString();
+      }
+      
+      const { error } = await supabase
+        .from("tasks")
+        .update(updateData)
+        .eq("id", taskId);
+
+      if (error) throw error;
+      toast.success(`Task status updated to ${status.replace('_', ' ')}!`);
+      fetchMyTasks();
+      fetchCompletedTasks();
+    } catch (error: any) {
+      console.error("Error updating task status:", error);
+      toast.error("Failed to update task status: " + error.message);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors = {
       pending: "bg-yellow-500",
@@ -525,16 +550,19 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       </div>
                       {userRole !== 'chief_architect' && (
                         <div className="flex gap-2">
-                          {task.status !== 'completed' && (
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => handleMarkComplete(task.id)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Mark Complete
-                            </Button>
-                          )}
+                          <Select 
+                            value={task.status} 
+                            onValueChange={(value) => handleUpdateTaskStatus(task.id, value as "pending" | "in_progress" | "completed" | "overdue")}
+                          >
+                            <SelectTrigger className="w-32 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border border-border z-50">
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <Button
                             variant="outline"
                             size="sm"
