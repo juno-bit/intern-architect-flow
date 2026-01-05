@@ -326,10 +326,12 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
               <Calendar className="h-5 w-5" />
               Meeting Records
             </CardTitle>
-            <Button onClick={() => setShowModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Meeting
-            </Button>
+            {userRole !== 'intern' && (
+              <Button onClick={() => setShowModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Meeting
+              </Button>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <div className="relative flex-1">
@@ -409,7 +411,7 @@ export default function MeetingsTab({ userId, userRole }: MeetingsTabProps) {
                           Recorded by: {meeting.profiles?.full_name || 'Unknown'}
                         </p>
                       </div>
-                      {canManageMeeting(meeting) && (
+                      {userRole !== 'intern' && canManageMeeting(meeting) && (
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
