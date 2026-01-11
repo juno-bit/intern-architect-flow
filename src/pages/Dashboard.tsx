@@ -411,7 +411,9 @@ export default function Dashboard() {
             <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
-          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
+            <TabsTrigger value="all-tasks">All Tasks</TabsTrigger>
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+            {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
               <>
                 <TabsTrigger value="meetings">Meetings</TabsTrigger>
                 <TabsTrigger value="financials">Financials</TabsTrigger>
@@ -422,14 +424,9 @@ export default function Dashboard() {
             )}
             {profile?.role === 'chief_architect' && (
               <>
-                <TabsTrigger value="all-tasks">All Tasks Table</TabsTrigger>
-                <TabsTrigger value="projects">Projects</TabsTrigger>
                 <TabsTrigger value="alerts">Deadline Alerts</TabsTrigger>
                 <TabsTrigger value="reports">Reports</TabsTrigger>
               </>
-            )}
-            {(profile?.role === 'junior_architect' || profile?.role === 'intern') && (
-              <TabsTrigger value="projects">Projects</TabsTrigger>
             )}
           </TabsList>
 
@@ -447,6 +444,17 @@ export default function Dashboard() {
 
           <TabsContent value="documents" className="space-y-6">
             <DocumentsTab userId={user?.id || ''} userRole={profile?.role || ''} />
+          </TabsContent>
+
+          <TabsContent value="all-tasks" className="space-y-6">
+            <TasksTable 
+              tasks={tasks}
+              projects={projects}
+              onEditTask={startEditTask}
+              onDeleteTask={deleteTask}
+              onUpdateStatus={updateTaskStatus}
+              userRole={profile?.role || ''}
+            />
           </TabsContent>
 
           <TabsContent value="projects" className="space-y-6">
@@ -473,16 +481,6 @@ export default function Dashboard() {
 
           {profile?.role === 'chief_architect' && (
             <>
-              <TabsContent value="all-tasks" className="space-y-6">
-                <TasksTable 
-                  tasks={tasks}
-                  onEditTask={startEditTask}
-                  onDeleteTask={deleteTask}
-                  onUpdateStatus={updateTaskStatus}
-                  userRole={profile?.role || ''}
-                />
-              </TabsContent>
-
               <TabsContent value="alerts" className="space-y-6">
                 <DeadlineAlertsTab userId={user?.id || ''} userRole={profile?.role || ''} />
               </TabsContent>
@@ -490,7 +488,6 @@ export default function Dashboard() {
               <TabsContent value="reports" className="space-y-6">
                 <h2 className="text-xl font-semibold">Progress Reports</h2>
                 
-                {/* Overall Team Summary */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Team Performance Overview</CardTitle>

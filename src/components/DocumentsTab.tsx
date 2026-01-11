@@ -64,6 +64,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -83,7 +84,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
 
       if (docsError) throw docsError;
 
-      // Fetch profiles separately
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, full_name');
@@ -138,15 +138,81 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // View document functionality - Available to ALL users
   const viewDocument = (doc: Document) => {
+    setPreviewDoc(doc);
     setPreviewUrl(doc.url);
     setIsPreviewOpen(true);
   };
 
-  // FULL ACCESS FOR EVERYONE
-  const canUpload = () => true; // Everyone can upload
-  const canManageDocument = () => true; // Everyone can edit/delete ANY document
+  const getPreviewContent = () => {
+    if (!previewDoc || !previewUrl) return null;
+    
+    const ext = previewDoc.file_extension?.toLowerCase();
+    const mime = previewDoc.mime_type?.toLowerCase() || '';
+    
+    if (mime.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) {
+      return (
+        <img 
+          src={previewUrl} 
+          alt={previewDoc.name}
+          className="max-w-full max-h-[60vh] mx-auto rounded-lg shadow-lg" 
+        />
+      );
+    }
+    
+    if (ext === 'pdf' || mime.includes('pdf')) {
+      return (
+        <iframe 
+          src={previewUrl} 
+          className="w-full h-[60vh] border-0 rounded-lg" 
+          title="PDF Preview" 
+        />
+      );
+    }
+    
+    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) {
+      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
+      return (
+        <iframe 
+          src={googleViewerUrl} 
+          className="w-full h-[60vh] border-0 rounded-lg" 
+          title="Document Preview" 
+        />
+      );
+    }
+    
+    if (['dwg', 'dxf'].includes(ext || '')) {
+      return (
+        <div className="text-center py-12">
+          <File className="h-16 w-16 mx-auto text-orange-500 mb-4" />
+          <p className="text-lg font-medium text-foreground">AutoCAD File</p>
+          <p className="text-muted-foreground mb-6">
+            AutoCAD files require specialized software to view. 
+            Please download and open in AutoCAD, DraftSight, or a compatible viewer.
+          </p>
+          <Button onClick={() => window.open(previewUrl, '_blank')}>
+            <Download className="h-4 w-4 mr-2" />
+            Download File
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="text-center py-12">
+        <File className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+        <p className="text-lg font-medium text-foreground">Preview not available</p>
+        <p className="text-muted-foreground mb-6">This file type cannot be previewed inline</p>
+        <Button onClick={() => window.open(previewUrl, '_blank')}>
+          <Download className="h-4 w-4 mr-2" />
+          Download File
+        </Button>
+      </div>
+    );
+  };
+
+  const canUpload = () => true;
+  const canManageDocument = () => true;
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +225,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
       setUploading(true);
 
       if (editingDocument) {
-        // Update existing document
         const { error } = await supabase
           .from('documents')
           .update({
@@ -171,7 +236,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
         if (error) throw error;
         toast.success('Document updated successfully');
       } else if (selectedFile) {
-        // Upload new file
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `documents/${userId}/${Date.now()}_${selectedFile.name}`;
 
@@ -217,10 +281,8 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
-      // Delete from storage
       await supabase.storage.from('WI storage').remove([doc.file_path]);
 
-      // Delete from database
       const { error } = await supabase.from('documents').delete().eq('id', doc.id);
       if (error) throw error;
 
@@ -266,7 +328,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
         </Button>
       </CardHeader>
       <CardContent>
-        {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-6">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -290,7 +351,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
           </Select>
         </div>
 
-        {/* Documents List */}
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">Loading documents...</div>
         ) : filteredDocuments.length === 0 ? (
@@ -325,7 +385,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {/* View - Available to EVERYONE */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -335,7 +394,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                     <Eye className="h-4 w-4" />
                   </Button>
                   
-                  {/* Download - Available to EVERYONE */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -345,7 +403,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                     <Download className="h-4 w-4" />
                   </Button>
                   
-                  {/* Edit - Available to EVERYONE (ANY document) */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -355,7 +412,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                     <Edit className="h-4 w-4" />
                   </Button>
                   
-                  {/* Delete - Available to EVERYONE (ANY document) */}
                   <Button
                     variant="destructive"
                     size="icon"
@@ -365,7 +421,6 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                   
-                  {/* Upload - Available to EVERYONE */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -380,68 +435,43 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
           </div>
         )}
 
-        {/* Document Preview Dialog - Available to EVERYONE */}
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-card border-border">
             <DialogHeader className="p-6 border-b border-border">
               <DialogTitle className="text-foreground flex items-center gap-2">
                 <Eye className="h-5 w-5" />
-                Document Preview
+                {previewDoc?.name || 'Document Preview'}
               </DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(previewUrl || '', '_blank')}
-                className="mt-2"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Open in new tab
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(previewUrl || '', '_blank')}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Open in Browser
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = previewUrl || '';
+                    link.download = previewDoc?.name || '';
+                    link.click();
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
             </DialogHeader>
             <div className="p-6 max-h-[70vh] overflow-auto">
-              {previewUrl ? (
-                <div className="space-y-4">
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => window.open(previewUrl, '_blank')}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Open in Browser
-                    </Button>
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = previewUrl;
-                        link.download = '';
-                        link.click();
-                      }}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download File
-                    </Button>
-                  </div>
-                  <iframe
-                    src={previewUrl}
-                    sandbox="allow-same-origin allow-scripts"
-                    className="w-full h-[55vh] border-0 rounded-lg shadow-lg bg-white"
-                    title="Document Preview"
-                  />
-                  <p className="text-xs text-center text-muted-foreground">
-                    If the preview doesn't load, use "Open in Browser" button above
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
-                  Preview not available for this file type
-                </div>
-              )}
+              {getPreviewContent()}
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Upload/Edit Dialog - Available to EVERYONE */}
         <Dialog open={isDialogOpen} onOpenChange={(open) => !open && resetForm()}>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
