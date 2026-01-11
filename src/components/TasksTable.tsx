@@ -26,18 +26,25 @@ interface Task {
   };
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 interface TasksTableProps {
   tasks: Task[];
+  projects?: Project[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onUpdateStatus: (taskId: string, status: Task['status']) => void;
   userRole: string;
 }
 
-export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateStatus, userRole }: TasksTableProps) {
+export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, onUpdateStatus, userRole }: TasksTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -68,8 +75,9 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
       
       const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+      const matchesProject = projectFilter === 'all' || task.project_id === projectFilter;
       
-      return matchesSearch && matchesStatus && matchesPriority;
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject;
     })
     .sort((a, b) => {
       let aValue: any;
@@ -128,7 +136,6 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
           All Tasks Overview
         </CardTitle>
         
-        {/* Filters */}
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -144,7 +151,7 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border border-border z-50">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
@@ -157,12 +164,26 @@ export default function TasksTable({ tasks, onEditTask, onDeleteTask, onUpdateSt
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border border-border z-50">
               <SelectItem value="all">All Priority</SelectItem>
               <SelectItem value="urgent">Urgent</SelectItem>
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Project" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border z-50">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects?.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           
