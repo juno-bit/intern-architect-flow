@@ -766,8 +766,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_all_profiles_limited: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          role: string
+          user_id: string
+        }[]
+      }
       get_assignable_users: {
         Args: { requester_uuid: string }
+        Returns: {
+          full_name: string
+          role: string
+          user_id: string
+        }[]
+      }
+      get_profile_display_info: {
+        Args: { profile_user_id: string }
         Returns: {
           full_name: string
           role: string
