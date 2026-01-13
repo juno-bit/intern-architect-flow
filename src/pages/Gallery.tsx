@@ -57,13 +57,26 @@ export default function Gallery() {
         .select(`
           *,
           projects (name),
-          tasks (title),
-          profiles!uploaded_by (full_name)
+          tasks (title)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setImages(data || []);
+
+      const imageIds = data?.map(img => img.uploaded_by).filter(Boolean) || [];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', imageIds);
+
+      const profilesMap = new Map(profilesData?.map(p => [p.user_id, p.full_name]) || []);
+
+      const imagesWithProfiles = (data || []).map(img => ({
+        ...img,
+        profiles: img.uploaded_by ? { full_name: profilesMap.get(img.uploaded_by) || 'Unknown' } : null
+      }));
+
+      setImages(imagesWithProfiles);
     } catch (error) {
       console.error('Error fetching images:', error);
       toast.error('Error loading images');
