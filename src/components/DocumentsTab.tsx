@@ -504,7 +504,15 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => window.open(doc.url, '_blank')}
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = doc.url;
+                      link.download = doc.name;
+                      link.target = '_blank';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
                     title="Download"
                   >
                     <Download className="h-4 w-4" />
