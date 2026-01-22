@@ -65,6 +65,7 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+  const [previewError, setPreviewError] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -114,19 +115,25 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     const mime = mimeType?.toLowerCase() || '';
 
     if (ext === 'xlsx' || ext === 'xls' || mime.includes('spreadsheet')) {
-      return <FileSpreadsheet className="h-8 w-8 text-green-500" />;
+      return <FileSpreadsheet className="h-8 w-8 text-emerald-500" />;
     }
     if (ext === 'docx' || ext === 'doc' || mime.includes('document')) {
-      return <FileText className="h-8 w-8 text-blue-500" />;
+      return <FileText className="h-8 w-8 text-primary" />;
     }
     if (ext === 'pdf' || mime.includes('pdf')) {
-      return <FileText className="h-8 w-8 text-red-500" />;
+      return <FileText className="h-8 w-8 text-destructive" />;
     }
-    if (ext === 'dwg' || ext === 'dxf' || ext === 'cad') {
-      return <File className="h-8 w-8 text-orange-500" />;
+    if (ext === 'dwg' || ext === 'dxf' || ext === 'cad' || ext === 'dwf') {
+      return <File className="h-8 w-8 text-amber-500" />;
     }
     if (mime.includes('image')) {
-      return <FileImage className="h-8 w-8 text-purple-500" />;
+      return <FileImage className="h-8 w-8 text-violet-500" />;
+    }
+    if (mime.includes('video') || ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext || '')) {
+      return <File className="h-8 w-8 text-pink-500" />;
+    }
+    if (mime.includes('audio') || ['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(ext || '')) {
+      return <File className="h-8 w-8 text-violet-500" />;
     }
     return <File className="h-8 w-8 text-muted-foreground" />;
   };
@@ -141,7 +148,34 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
   const viewDocument = (doc: Document) => {
     setPreviewDoc(doc);
     setPreviewUrl(doc.url);
+    setPreviewError(false);
     setIsPreviewOpen(true);
+  };
+
+  const handlePreviewError = () => {
+    setPreviewError(true);
+  };
+
+  const resetPreviewState = () => {
+    setPreviewError(false);
+  };
+
+  const openInNewTab = () => {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const downloadFile = () => {
+    if (previewUrl && previewDoc) {
+      const link = document.createElement('a');
+      link.href = previewUrl;
+      link.download = previewDoc.name;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const getPreviewContent = () => {
@@ -149,65 +183,224 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
     
     const ext = previewDoc.file_extension?.toLowerCase();
     const mime = previewDoc.mime_type?.toLowerCase() || '';
-    
-    if (mime.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) {
-      return (
-        <img 
-          src={previewUrl} 
-          alt={previewDoc.name}
-          className="max-w-full max-h-[60vh] mx-auto rounded-lg shadow-lg" 
-        />
-      );
-    }
-    
-    if (ext === 'pdf' || mime.includes('pdf')) {
-      return (
-        <iframe 
-          src={previewUrl} 
-          className="w-full h-[60vh] border-0 rounded-lg" 
-          title="PDF Preview" 
-        />
-      );
-    }
-    
-    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) {
-      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
-      return (
-        <iframe 
-          src={googleViewerUrl} 
-          className="w-full h-[60vh] border-0 rounded-lg" 
-          title="Document Preview" 
-        />
-      );
-    }
-    
-    if (['dwg', 'dxf'].includes(ext || '')) {
-      return (
-        <div className="text-center py-12">
-          <File className="h-16 w-16 mx-auto text-orange-500 mb-4" />
-          <p className="text-lg font-medium text-foreground">AutoCAD File</p>
-          <p className="text-muted-foreground mb-6">
-            AutoCAD files require specialized software to view. 
-            Please download and open in AutoCAD, DraftSight, or a compatible viewer.
-          </p>
-          <Button onClick={() => window.open(previewUrl, '_blank')}>
-            <Download className="h-4 w-4 mr-2" />
-            Download File
+
+    // Fallback UI for when preview fails
+    const renderFallback = (title: string, description: string, icon: React.ReactNode) => (
+      <div className="text-center py-12">
+        {icon}
+        <p className="text-lg font-medium text-foreground">{title}</p>
+        <p className="text-muted-foreground mb-6">{description}</p>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={openInNewTab}>
+            <Eye className="h-4 w-4 mr-2" />
+            Open in New Tab
           </Button>
+          <Button onClick={downloadFile}>
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        </div>
+      </div>
+    );
+
+    // If preview errored, show fallback
+    if (previewError) {
+      return renderFallback(
+        'Preview Unavailable',
+        'The document could not be previewed. Try opening in a new tab or downloading.',
+        <File className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+      );
+    }
+    
+    // Images
+    if (mime.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'tiff', 'tif'].includes(ext || '')) {
+      return (
+        <div className="flex flex-col items-center">
+          <img 
+            src={previewUrl} 
+            alt={previewDoc.name}
+            className="max-w-full max-h-[55vh] mx-auto rounded-lg shadow-lg object-contain" 
+            onError={handlePreviewError}
+          />
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" size="sm" onClick={openInNewTab}>
+              <Eye className="h-4 w-4 mr-2" />
+              Full Size
+            </Button>
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </div>
         </div>
       );
     }
     
-    return (
-      <div className="text-center py-12">
-        <File className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <p className="text-lg font-medium text-foreground">Preview not available</p>
-        <p className="text-muted-foreground mb-6">This file type cannot be previewed inline</p>
-        <Button onClick={() => window.open(previewUrl, '_blank')}>
-          <Download className="h-4 w-4 mr-2" />
-          Download File
-        </Button>
-      </div>
+    // PDFs - use object tag as primary with iframe fallback
+    if (ext === 'pdf' || mime.includes('pdf')) {
+      return (
+        <div className="flex flex-col h-full">
+          <object 
+            data={previewUrl}
+            type="application/pdf"
+            className="w-full h-[60vh] rounded-lg"
+          >
+            <iframe 
+              src={previewUrl}
+              className="w-full h-[60vh] border-0 rounded-lg" 
+              title="PDF Preview"
+              onError={handlePreviewError}
+            />
+          </object>
+          <div className="flex gap-3 justify-center mt-4">
+            <Button variant="outline" size="sm" onClick={openInNewTab}>
+              <Eye className="h-4 w-4 mr-2" />
+              Open in Browser
+            </Button>
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    // Office documents - use Microsoft Office Online viewer (more reliable than Google)
+    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) {
+      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`;
+      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
+      
+      return (
+        <div className="flex flex-col h-full">
+          <div className="relative w-full h-[60vh]">
+            <iframe 
+              src={officeViewerUrl}
+              className="w-full h-full border-0 rounded-lg" 
+              title="Document Preview"
+              sandbox="allow-scripts allow-same-origin allow-popups"
+              onError={handlePreviewError}
+            />
+          </div>
+          <div className="flex flex-wrap gap-3 justify-center mt-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.open(googleViewerUrl, '_blank')}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Try Google Viewer
+            </Button>
+            <Button variant="outline" size="sm" onClick={openInNewTab}>
+              <Eye className="h-4 w-4 mr-2" />
+              Open Direct
+            </Button>
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            If preview doesn't load, try Google Viewer or download the file
+          </p>
+        </div>
+      );
+    }
+
+    // Text files - fetch and display content
+    if (['txt', 'md', 'json', 'xml', 'csv', 'log', 'html', 'css', 'js', 'ts', 'jsx', 'tsx'].includes(ext || '') || 
+        mime.includes('text/')) {
+      return (
+        <div className="flex flex-col h-full">
+          <iframe 
+            src={previewUrl}
+            className="w-full h-[60vh] border rounded-lg bg-background" 
+            title="Text Preview"
+            sandbox="allow-same-origin"
+          />
+          <div className="flex gap-3 justify-center mt-4">
+            <Button variant="outline" size="sm" onClick={openInNewTab}>
+              <Eye className="h-4 w-4 mr-2" />
+              Open in New Tab
+            </Button>
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    // AutoCAD files
+    if (['dwg', 'dxf', 'dwf'].includes(ext || '')) {
+      return renderFallback(
+        'AutoCAD File',
+        'AutoCAD files require specialized software. Download and open in AutoCAD, DraftSight, or a compatible viewer.',
+        <File className="h-16 w-16 mx-auto text-orange-500 mb-4" />
+      );
+    }
+
+    // Video files
+    if (mime.includes('video') || ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext || '')) {
+      return (
+        <div className="flex flex-col items-center">
+          <video 
+            src={previewUrl}
+            controls
+            className="max-w-full max-h-[55vh] rounded-lg shadow-lg"
+            onError={handlePreviewError}
+          >
+            Your browser does not support video playback.
+          </video>
+          <div className="flex gap-3 mt-4">
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download Video
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Audio files
+    if (mime.includes('audio') || ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'].includes(ext || '')) {
+      return (
+        <div className="flex flex-col items-center py-8">
+          <File className="h-16 w-16 text-purple-500 mb-4" />
+          <p className="text-lg font-medium text-foreground mb-4">{previewDoc.name}</p>
+          <audio 
+            src={previewUrl}
+            controls
+            className="w-full max-w-md"
+            onError={handlePreviewError}
+          >
+            Your browser does not support audio playback.
+          </audio>
+          <div className="flex gap-3 mt-4">
+            <Button size="sm" onClick={downloadFile}>
+              <Download className="h-4 w-4 mr-2" />
+              Download Audio
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Archive files
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || '')) {
+      return renderFallback(
+        'Archive File',
+        'Archive files cannot be previewed. Download to extract contents.',
+        <File className="h-16 w-16 mx-auto text-yellow-500 mb-4" />
+      );
+    }
+    
+    // Default fallback for unknown types
+    return renderFallback(
+      'Preview Not Available',
+      `This file type (${ext || 'unknown'}) cannot be previewed inline.`,
+      <File className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
     );
   };
 
