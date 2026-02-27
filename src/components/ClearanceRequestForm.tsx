@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MessageSquare, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { MessageSquare, Clock, CheckCircle, AlertTriangle, Upload, X, FileText } from "lucide-react";
 
 interface Task {
   id: string;
@@ -24,6 +25,13 @@ interface Project {
   name: string;
 }
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
+
 interface ClearanceRequestFormProps {
   userId: string;
   userRole: string;
@@ -37,15 +45,12 @@ const urgencyLevels = [
 ];
 
 export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormProps) => {
-  // Chief architects don't request clearances - they only approve them
-  if (userRole === 'chief_architect') {
-    return null;
-  }
-
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [clearanceForm, setClearanceForm] = useState({
     task_id: '',
     project_id: '',
@@ -58,20 +63,20 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
     fetchData();
   }, [userId]);
 
+  // Chief architects don't request clearances
+  if (userRole === 'chief_architect') {
+    return null;
+  }
+
   const fetchData = async () => {
     try {
-      // Fetch user's assigned tasks that aren't completed
       const { data: tasksData } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          projects:project_id(name)
-        `)
+        .select(`*, projects:project_id(name)`)
         .eq('assigned_to', userId)
         .neq('status', 'completed')
         .order('due_date', { ascending: true });
 
-      // Fetch projects
       const { data: projectsData } = await supabase
         .from('projects')
         .select('id, name')
@@ -89,6 +94,53 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
     !clearanceForm.project_id || task.project_id === clearanceForm.project_id
   );
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `clearances/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('WI storage')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('WI storage')
+          .getPublicUrl(fileName);
+
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          url: publicUrl,
+          type: file.type,
+          size: file.size
+        }]);
+      }
+      toast.success('File(s) uploaded successfully');
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload file: ' + error.message);
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   const handleSubmitClearance = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -104,6 +156,10 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
 
     try {
       setSubmitting(true);
+
+      const notesWithAttachments = uploadedFiles.length > 0
+        ? `${clearanceForm.notes}\n\n--- Attachments ---\n${uploadedFiles.map(f => `${f.name}: ${f.url}`).join('\n')}`
+        : clearanceForm.notes;
       
       const { error } = await supabase
         .from('task_clearances')
@@ -111,7 +167,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
           task_id: clearanceForm.task_id,
           requested_by: userId,
           status: 'pending',
-          notes: clearanceForm.notes
+          notes: notesWithAttachments
         });
 
       if (error) throw error;
@@ -125,6 +181,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
         urgency: 'medium',
         supporting_documents: ''
       });
+      setUploadedFiles([]);
     } catch (error: any) {
       console.error('Error submitting clearance:', error);
       toast.error('Failed to submit clearance request: ' + error.message);
@@ -145,14 +202,17 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Dialog open={showForm} onOpenChange={setShowForm}>
+        <Dialog open={showForm} onOpenChange={(open) => {
+          setShowForm(open);
+          if (!open) setUploadedFiles([]);
+        }}>
           <DialogTrigger asChild>
             <Button variant="success" size="lg" className="w-full">
               <CheckCircle className="h-4 w-4 mr-2" />
               Request Clearance
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Submit Clearance Request</DialogTitle>
             </DialogHeader>
@@ -173,7 +233,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by project (optional)" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50 text-white">
+                    <SelectContent className="bg-background border border-border z-50 text-foreground">
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
@@ -192,7 +252,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border border-border z-50 text-white">
+                    <SelectContent className="bg-background border border-border z-50 text-foreground">
                       {urgencyLevels.map((level) => (
                         <SelectItem key={level.value} value={level.value}>
                           <div className="flex items-center gap-2">
@@ -215,7 +275,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a task to request clearance for" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border border-border z-50 text-white">
+                  <SelectContent className="bg-background border border-border z-50 text-foreground">
                     {filteredTasks.map((task) => (
                       <SelectItem key={task.id} value={task.id}>
                         <div className="flex flex-col items-start">
@@ -251,7 +311,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   <div className="mt-2 space-y-2">
                     <p><strong>Title:</strong> {selectedTask.title}</p>
                     <p><strong>Status:</strong> 
-                      <Badge className={`ml-2 bg-green-500 text-white`}>
+                      <Badge className="ml-2 bg-green-500 text-white">
                         {selectedTask.status}
                       </Badge>
                     </p>
@@ -277,14 +337,55 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Supporting Documentation (Optional)</label>
-                <Textarea
-                  placeholder="List any supporting documents, photos, or references that support this clearance request..."
-                  value={clearanceForm.supporting_documents}
-                  onChange={(e) => setClearanceForm({ ...clearanceForm, supporting_documents: e.target.value })}
-                  rows={2}
-                />
+              {/* File Upload Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Attachments (Images & Documents)</label>
+                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                  <label className="cursor-pointer flex flex-col items-center gap-2">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {uploading ? 'Uploading...' : 'Click to upload images or documents'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Supports images, PDFs, CAD files (.dwg, .dxf, .rvt, .skp), and documents
+                    </span>
+                    <Input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.dwg,.dxf,.dwf,.rvt,.skp,.ifc,.pln,.txt,.csv"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
+
+                {uploadedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
+                        {file.type.startsWith('image/') ? (
+                          <img src={file.url} alt={file.name} className="h-10 w-10 rounded object-cover" />
+                        ) : (
+                          <FileText className="h-10 w-10 text-muted-foreground p-1" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFile(index)}
+                          className="h-8 w-8"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {urgencyConfig && (
@@ -305,7 +406,7 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   variant="success"
                   size="lg"
                   className="flex-1" 
-                  disabled={submitting}
+                  disabled={submitting || uploading}
                 >
                   {submitting ? 'Submitting...' : 'Submit Clearance Request'}
                 </Button>
