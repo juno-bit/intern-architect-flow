@@ -291,21 +291,6 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
                         {task.status.replace('_', ' ')}
                       </Badge>
                       
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onEditTask(task)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onDeleteTask(task.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
