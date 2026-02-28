@@ -218,21 +218,16 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
       );
     }
     
-    // PDFs - display directly
+    // PDFs - use Google Docs Viewer for reliable cross-origin rendering
     if (ext === 'pdf' || mime.includes('pdf')) {
+      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
       return (
-        <object 
-          data={previewUrl}
-          type="application/pdf"
-          className="w-full h-[65vh] rounded-lg"
-        >
-          <iframe 
-            src={previewUrl}
-            className="w-full h-[65vh] border-0 rounded-lg" 
-            title="PDF Preview"
-            onError={handlePreviewError}
-          />
-        </object>
+        <iframe 
+          src={googleViewerUrl}
+          className="w-full h-[65vh] border-0 rounded-lg" 
+          title="PDF Preview"
+          onError={handlePreviewError}
+        />
       );
     }
     
