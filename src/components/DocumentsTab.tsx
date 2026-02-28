@@ -236,11 +236,12 @@ const DocumentsTab = ({ userId, userRole }: DocumentsTabProps) => {
       );
     }
     
-    // Office documents - display directly via iframe
+    // Office documents - use Google Docs Viewer for reliable rendering
     if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) {
+      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
       return (
         <iframe 
-          src={previewUrl}
+          src={googleViewerUrl}
           className="w-full h-[65vh] border-0 rounded-lg" 
           title="Document Preview"
           onError={handlePreviewError}
