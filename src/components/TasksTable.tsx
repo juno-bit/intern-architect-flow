@@ -287,25 +287,9 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {userRole !== 'chief_architect' ? (
-                        <Select 
-                          value={task.status} 
-                          onValueChange={(value) => onUpdateStatus(task.id, value as Task['status'])}
-                        >
-                          <SelectTrigger className="w-28 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge className={`${getStatusColor(task.status)} text-white w-28 justify-center`}>
-                          {task.status.replace('_', ' ')}
-                        </Badge>
-                      )}
+                      <Badge className={`${getStatusColor(task.status)} text-white w-28 justify-center`}>
+                        {task.status.replace('_', ' ')}
+                      </Badge>
                       
                       <Button
                         size="sm"
