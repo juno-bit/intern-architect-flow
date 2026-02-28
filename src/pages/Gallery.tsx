@@ -294,8 +294,7 @@ export default function Gallery() {
         {images.length === 0 && (
           <div className="text-center py-12">
             <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No images uploaded yet</h3>
-            <p className="text-muted-foreground">Upload your first image to get started</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">Upload your first image!</h3>
           </div>
         )}
       </main>
