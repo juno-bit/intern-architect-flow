@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit2, Trash2, Search, Filter, Calendar, User } from 'lucide-react';
+import { Edit2, Trash2, Search, Filter, Calendar, User, Plus, RefreshCw } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -16,6 +16,7 @@ interface Task {
   due_date: string;
   assigned_to: string;
   project_id?: string;
+  created_by?: string;
   created_at: string;
   profiles?: {
     full_name: string;
@@ -33,20 +34,86 @@ interface Project {
 
 interface TasksTableProps {
   tasks: Task[];
-  projects?: Project[];
+  projects: Project[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onUpdateStatus: (taskId: string, status: Task['status']) => void;
+  onCreateProject: (projectName: string) => void;
+  onAssignProject: (taskId: string, projectId: string) => void;
   userRole: string;
+  currentUserId: string;
+  onRefresh: () => void; // New prop for manual refresh
+  autoRefreshEnabled?: boolean; // New prop to control auto-refresh
 }
 
-export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, onUpdateStatus, userRole }: TasksTableProps) {
+export default function TasksTable({ 
+  tasks, 
+  projects, 
+  onEditTask, 
+  onDeleteTask, 
+  onUpdateStatus,
+  onCreateProject,
+  onAssignProject,
+  userRole, 
+  currentUserId,
+  onRefresh,
+  autoRefreshEnabled = true 
+}: TasksTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [refreshIntervalId, setRefreshIntervalId] = useState<NodeJS.Timeout | null>(null);
+
+  const isJuniorArchitect = userRole === 'junior_architect';
+  const canCreateProjects = isJuniorArchitect;
+  const canDeleteTasks = isJuniorArchitect;
+
+  // Auto-refresh logic (5 minutes = 300000 ms)
+  useEffect(() => {
+    if (!autoRefreshEnabled) return;
+
+    const refreshData = () => {
+      onRefresh();
+      setLastRefreshTime(new Date());
+    };
+
+    // Initial refresh
+    refreshData();
+
+    // Set up 5-minute interval
+    const intervalId = setInterval(refreshData, 300000);
+
+    setRefreshIntervalId(intervalId);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [onRefresh, autoRefreshEnabled]);
+
+  const handleManualRefresh = useCallback(() => {
+    onRefresh();
+    setLastRefreshTime(new Date());
+  }, [onRefresh]);
+
+  const handleCreateProject = () => {
+    if (newProjectName.trim()) {
+      onCreateProject(newProjectName.trim());
+      setNewProjectName('');
+      setShowProjectModal(false);
+    }
+  };
+
+  const canDeleteTask = (task: Task) => {
+    return canDeleteTasks && task.created_by === currentUserId;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -131,10 +198,31 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          All Tasks Overview
-        </CardTitle>
+        <div className="flex justify-between items-start w-full">
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            All Tasks Overview
+          </CardTitle>
+          
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <RefreshCw className={`h-4 w-4 ${autoRefreshEnabled ? 'animate-spin' : ''}`} />
+            <span>
+              {autoRefreshEnabled 
+                ? `Auto-refresh: ${lastRefreshTime ? `Last: ${lastRefreshTime.toLocaleTimeString()}` : 'Starting...'}` 
+                : 'Auto-refresh off'
+              }
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleManualRefresh}
+              className="h-8 w-8 p-0"
+              title="Manual Refresh"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
@@ -184,6 +272,15 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
                   {project.name}
                 </SelectItem>
               ))}
+              {canCreateProjects && (
+                <SelectItem 
+                  value="create-new" 
+                  className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"
+                  onSelect={() => setShowProjectModal(true)}
+                >
+                  ➕ Create New Project
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
           
@@ -193,6 +290,7 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
         </div>
       </CardHeader>
       
+      {/* Rest of the component remains the same */}
       <CardContent>
         <div className="rounded-md border overflow-hidden">
           <Table>
@@ -257,7 +355,23 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
                     </div>
                   </TableCell>
                   <TableCell>
-                    {task.projects?.name || 'No Project'}
+                    <div className="flex items-center gap-2">
+                      {task.projects?.name || 'No Project'}
+                      {canCreateProjects && !task.project_id && (
+                        <Select onValueChange={(projectId) => onAssignProject(task.id, projectId)}>
+                          <SelectTrigger className="h-8 w-32 text-xs">
+                            <SelectValue placeholder="Assign" />
+                          </SelectTrigger>
+                          <SelectContent className="w-40">
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge className={`${getStatusColor(task.status)} text-white`}>
@@ -287,10 +401,35 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge className={`${getStatusColor(task.status)} text-white w-28 justify-center`}>
-                        {task.status.replace('_', ' ')}
-                      </Badge>
-                      
+                      {userRole === 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onUpdateStatus(task.id, task.status as Task['status'])}
+                          title="Update Status"
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEditTask(task)}
+                        title="Edit Task"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      {canDeleteTask(task) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onDeleteTask(task.id)}
+                          title="Delete Task (Yours)"
+                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -305,6 +444,37 @@ export default function TasksTable({ tasks, projects, onEditTask, onDeleteTask, 
           )}
         </div>
       </CardContent>
+
+      {/* Project Creation Modal */}
+      {showProjectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Create New Project</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-6">
+              <Input
+                placeholder="Enter project name..."
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                className="bg-background border-border text-white"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowProjectModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateProject}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Project
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </Card>
   );
 }
