@@ -230,12 +230,10 @@ export default function EnhancedProjectsTab({
             />
           </div>
         </div>
-        {userRole === 'chief_architect' && (
-          <Button variant="success" size="lg" onClick={onCreateProject}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Project
-          </Button>
-        )}
+        <Button variant="success" size="lg" onClick={onCreateProject}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Project
+        </Button>
       </div>
 
       {/* Empty State */}
@@ -245,20 +243,14 @@ export default function EnhancedProjectsTab({
             <div className="rounded-full bg-primary/10 p-6 mb-4">
               <Folder className="h-12 w-12 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">
-              {userRole === 'chief_architect' ? 'No Projects Yet' : 'No Assigned Projects'}
-            </h3>
+            <h3 className="text-xl font-semibold mb-2">No Projects Yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              {userRole === 'chief_architect' 
-                ? 'Get started by creating your first project to organize tasks, track progress, and manage your team effectively.'
-                : 'You haven\'t been assigned to any projects yet. Ask your supervisor to assign you tasks on existing projects.'}
+              Get started by creating your first project to organize tasks, track progress, and manage your team effectively.
             </p>
-            {userRole === 'chief_architect' && (
-              <Button variant="success" size="lg" onClick={onCreateProject}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Project
-              </Button>
-            )}
+            <Button variant="success" size="lg" onClick={onCreateProject}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Your First Project
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -301,26 +293,24 @@ export default function EnhancedProjectsTab({
                       </CardDescription>
                     )}
                   </div>
-                  {userRole === 'chief_architect' && (
-                    <div className="flex space-x-1 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onEditProject(project)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onDeleteProject(project.id)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex space-x-1 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onEditProject(project)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onDeleteProject(project.id)}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               

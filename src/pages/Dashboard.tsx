@@ -81,7 +81,8 @@ export default function Dashboard() {
     name: '',
     description: '',
     start_date: '',
-    estimated_completion_date: ''
+    estimated_completion_date: '',
+    project_type: 'residential'
   });
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
@@ -259,7 +260,7 @@ export default function Dashboard() {
       
       setShowProjectModal(false);
       setEditingProject(null);
-      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '' });
+      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '', project_type: 'residential' });
       fetchProjects();
       toast.success('Project created successfully');
     } catch (error) {
@@ -282,7 +283,7 @@ export default function Dashboard() {
       
       setShowProjectModal(false);
       setEditingProject(null);
-      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '' });
+      setProjectForm({ name: '', description: '', start_date: '', estimated_completion_date: '', project_type: 'residential' });
       fetchProjects();
       toast.success('Project updated successfully');
     } catch (error) {
@@ -314,7 +315,8 @@ export default function Dashboard() {
       name: project.name,
       description: project.description || '',
       start_date: project.start_date || '',
-      estimated_completion_date: project.estimated_completion_date || ''
+      estimated_completion_date: project.estimated_completion_date || '',
+      project_type: (project as any).project_type || 'residential'
     });
     setShowProjectModal(true);
   };
@@ -698,6 +700,29 @@ export default function Dashboard() {
                 value={projectForm.description}
                 onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
               />
+              <Select
+                value={projectForm.project_type}
+                onValueChange={(value) => setProjectForm({ ...projectForm, project_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Project Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50 text-white">
+                  <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                  <SelectItem value="industrial">Industrial</SelectItem>
+                  <SelectItem value="institutional">Institutional</SelectItem>
+                  <SelectItem value="mixed_use">Mixed-Use</SelectItem>
+                  <SelectItem value="interior_design">Interior Design</SelectItem>
+                  <SelectItem value="landscape">Landscape</SelectItem>
+                  <SelectItem value="new_build">New Build</SelectItem>
+                  <SelectItem value="renovation">Renovation</SelectItem>
+                  <SelectItem value="extension">Extension</SelectItem>
+                  <SelectItem value="restoration">Restoration</SelectItem>
+                  <SelectItem value="demolition">Demolition</SelectItem>
+                  <SelectItem value="fit_out">Fit-out</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Start Date</label>
