@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit2, Trash2, Calendar, User, AlertCircle, Table, Bell } from 'lucide-react';
 import { toast } from 'sonner';
@@ -700,29 +700,38 @@ export default function Dashboard() {
                 value={projectForm.description}
                 onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
               />
-              <Select
-                value={projectForm.project_type}
-                onValueChange={(value) => setProjectForm({ ...projectForm, project_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Project Type" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50 text-white">
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                  <SelectItem value="industrial">Industrial</SelectItem>
-                  <SelectItem value="institutional">Institutional</SelectItem>
-                  <SelectItem value="mixed_use">Mixed-Use</SelectItem>
-                  <SelectItem value="interior_design">Interior Design</SelectItem>
-                  <SelectItem value="landscape">Landscape</SelectItem>
-                  <SelectItem value="new_build">New Build</SelectItem>
-                  <SelectItem value="renovation">Renovation</SelectItem>
-                  <SelectItem value="extension">Extension</SelectItem>
-                  <SelectItem value="restoration">Restoration</SelectItem>
-                  <SelectItem value="demolition">Demolition</SelectItem>
-                  <SelectItem value="fit_out">Fit-out</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Project Type</label>
+                <Select
+                  value={projectForm.project_type}
+                  onValueChange={(value) => setProjectForm({ ...projectForm, project_type: value })}
+                >
+                  <SelectTrigger className="text-foreground">
+                    <SelectValue placeholder="Select project type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border border-border z-50 text-foreground max-h-72">
+                    <SelectGroup>
+                      <SelectLabel className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Architecture</SelectLabel>
+                      <SelectItem value="residential" className="text-foreground">Residential</SelectItem>
+                      <SelectItem value="commercial" className="text-foreground">Commercial</SelectItem>
+                      <SelectItem value="industrial" className="text-foreground">Industrial</SelectItem>
+                      <SelectItem value="institutional" className="text-foreground">Institutional</SelectItem>
+                      <SelectItem value="mixed_use" className="text-foreground">Mixed-Use</SelectItem>
+                      <SelectItem value="interior_design" className="text-foreground">Interior Design</SelectItem>
+                      <SelectItem value="landscape" className="text-foreground">Landscape</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Construction</SelectLabel>
+                      <SelectItem value="new_build" className="text-foreground">New Build</SelectItem>
+                      <SelectItem value="renovation" className="text-foreground">Renovation</SelectItem>
+                      <SelectItem value="extension" className="text-foreground">Extension</SelectItem>
+                      <SelectItem value="restoration" className="text-foreground">Restoration</SelectItem>
+                      <SelectItem value="demolition" className="text-foreground">Demolition</SelectItem>
+                      <SelectItem value="fit_out" className="text-foreground">Fit-out</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Start Date</label>
