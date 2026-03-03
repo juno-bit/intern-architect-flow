@@ -456,6 +456,21 @@ export default function Dashboard() {
               onDeleteTask={deleteTask}
               onUpdateStatus={updateTaskStatus}
               userRole={profile?.role || ''}
+              currentUserId={user?.id || ''}
+              onCreateProject={(name) => {
+                setProjectForm({ ...projectForm, name });
+                setShowProjectModal(true);
+              }}
+              onAssignProject={async (taskId, projectId) => {
+                try {
+                  await supabase.from('tasks').update({ project_id: projectId }).eq('id', taskId);
+                  fetchTasks();
+                  toast.success('Project assigned to task');
+                } catch (error) {
+                  toast.error('Error assigning project');
+                }
+              }}
+              onRefresh={fetchTasks}
             />
           </TabsContent>
 

@@ -113,13 +113,13 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
         .select(`
           *,
           task:task_id(title),
-          requester:requested_by(full_name),
-          clearer:cleared_by(full_name)
+          requester:profiles!task_clearances_requested_by_fkey(full_name),
+          clearer:profiles!task_clearances_cleared_by_fkey(full_name)
         `)
         .eq('requested_by', userId)
         .order('requested_at', { ascending: false });
 
-      setClearances(data || []);
+      setClearances((data as any) || []);
     } catch (error) {
       console.error('Error fetching clearances:', error);
     }
