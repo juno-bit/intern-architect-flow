@@ -440,12 +440,98 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Request Task Clearance</DialogTitle>
+              </DialogHeader>
               <form onSubmit={handleSubmitClearance} className="space-y-4">
-                {/* Original form content here - unchanged */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Project + Urgency selectors */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Filter by Project</label>
+                    <Select value={clearanceForm.project_id} onValueChange={(val) => setClearanceForm(prev => ({ ...prev, project_id: val, task_id: '' }))}>
+                      <SelectTrigger><SelectValue placeholder="All Projects" /></SelectTrigger>
+                      <SelectContent>
+                        {projects.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Urgency</label>
+                    <Select value={clearanceForm.urgency} onValueChange={(val) => setClearanceForm(prev => ({ ...prev, urgency: val }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {urgencyLevels.map(u => (
+                          <SelectItem key={u.value} value={u.value}>
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${u.color}`} />
+                              {u.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                {/* Task selector, notes, file upload - all unchanged */}
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Task *</label>
+                  <Select value={clearanceForm.task_id} onValueChange={(val) => setClearanceForm(prev => ({ ...prev, task_id: val }))}>
+                    <SelectTrigger><SelectValue placeholder="Choose a task..." /></SelectTrigger>
+                    <SelectContent>
+                      {filteredTasks.length === 0 ? (
+                        <SelectItem value="none" disabled>No tasks available</SelectItem>
+                      ) : (
+                        filteredTasks.map(task => (
+                          <SelectItem key={task.id} value={task.id}>
+                            {task.title} {task.projects?.name ? `(${task.projects.name})` : ''}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Clearance Notes *</label>
+                  <Textarea
+                    placeholder="Describe the work completed and why clearance is needed..."
+                    value={clearanceForm.notes}
+                    onChange={(e) => setClearanceForm(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Supporting Documents</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                      className="flex-1"
+                    />
+                    {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                  </div>
+                  {uploadedFiles.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm bg-muted p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span>{file.name}</span>
+                            <span className="text-muted-foreground">({formatFileSize(file.size)})</span>
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <Button type="submit" variant="success" className="flex-1" disabled={submitting || uploading}>
                     {submitting ? 'Submitting...' : 'Submit Clearance Request'}
