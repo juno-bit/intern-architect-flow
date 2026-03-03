@@ -99,7 +99,7 @@ export default function EnhancedProjectsTab({
       
       // Fetch stats for each project
       if (data) {
-        data.forEach(project => fetchProjectStats(project.id));
+        data.forEach(project => fetchProjectStats(project.id, project.status));
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -109,22 +109,14 @@ export default function EnhancedProjectsTab({
     }
   };
 
-  const fetchProjectStats = async (projectId: string) => {
+  const fetchProjectStats = async (projectId: string, currentStatus: string) => {
     try {
-      // Fetch tasks count
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select('id, status')
-        .eq('project_id', projectId);
+      const [{ data: tasks, error: tasksError }, { data: images, error: imagesError }] = await Promise.all([
+        supabase.from('tasks').select('id, status').eq('project_id', projectId),
+        supabase.from('images').select('id').eq('project_id', projectId),
+      ]);
 
       if (tasksError) throw tasksError;
-
-      // Fetch images count
-      const { data: images, error: imagesError } = await supabase
-        .from('images')
-        .select('id')
-        .eq('project_id', projectId);
-
       if (imagesError) throw imagesError;
 
       const totalTasks = tasks?.length || 0;
@@ -133,54 +125,23 @@ export default function EnhancedProjectsTab({
 
       setProjectStats(prev => ({
         ...prev,
-        [projectId]: {
-          totalTasks,
-          completedTasks,
-          totalImages
-        }
+        [projectId]: { totalTasks, completedTasks, totalImages }
       }));
 
-      // Auto-update project status
-      const project = projects.find(p => p.id === projectId);
-      await updateProjectStatus(projectId, project?.status || '', {
-        totalTasks,
-        completedTasks,
-        totalImages
-      });
+      // Auto-update project status (no re-fetch to avoid infinite loop)
+      let newStatus: string | null = null;
+      if (currentStatus !== 'completed' && totalTasks > 0 && completedTasks === totalTasks) {
+        newStatus = 'completed';
+      } else if (currentStatus !== 'completed' && currentStatus !== 'in_progress' && totalTasks > 0) {
+        newStatus = 'in_progress';
+      }
+
+      if (newStatus) {
+        await supabase.from('projects').update({ status: newStatus as any }).eq('id', projectId);
+        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus! } : p));
+      }
     } catch (error) {
       console.error('Error fetching project stats:', error);
-    }
-  };
-
-  const updateProjectStatus = async (projectId: string, currentStatus: string, stats: ProjectStats) => {
-    try {
-      // Don't change if already completed
-      if (currentStatus === 'completed') return;
-      
-      // Auto-complete if all tasks are done
-      if (stats.totalTasks > 0 && stats.completedTasks === stats.totalTasks) {
-        await supabase
-          .from('projects')
-          .update({ status: 'completed' })
-          .eq('id', projectId);
-        
-        // Refresh projects to show updated status
-        fetchProjects();
-        return;
-      }
-      
-      // Auto-set to in_progress if has tasks and not already in progress
-      if (stats.totalTasks > 0 && currentStatus !== 'in_progress') {
-        await supabase
-          .from('projects')
-          .update({ status: 'in_progress' })
-          .eq('id', projectId);
-        
-        // Refresh projects to show updated status
-        fetchProjects();
-      }
-    } catch (error) {
-      console.error('Error updating project status:', error);
     }
   };
 
