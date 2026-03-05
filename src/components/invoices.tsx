@@ -64,17 +64,6 @@ interface Invoice {
   projects?: { name: string } | null;
 }
 
-interface Payment {
-  id: string;
-  invoice_id: string;
-  amount: number;
-  payment_date: string;
-  payment_method: string | null;
-  notes: string | null;
-  recorded_by: string;
-  created_at: string;
-}
-
 interface FinancialsTabProps {
   userId: string;
   userRole: string;
@@ -88,7 +77,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   const [projectFilter, setProjectFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -100,12 +88,10 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     issue_date: new Date().toISOString().split('T')[0],
     due_date: '',
     description: '',
-  });
-  const [paymentForm, setPaymentForm] = useState({
-    amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
     payment_method: '',
-    notes: '',
+    payment_amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_notes: '',
   });
   const [statusAction, setStatusAction] = useState<'settled' | 'cancelled' | null>(null);
 
@@ -148,18 +134,12 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     return <Badge className={styles[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
-  // Format currency in Indian numbering system (lakhs, crores)
   const formatCurrencyIndian = (amount: number): string => {
     const absAmount = Math.abs(amount);
     const sign = amount < 0 ? '-' : '';
-    
-    if (absAmount >= 10000000) {
-      return `${sign}₹${(absAmount / 10000000).toFixed(2)} Cr`;
-    } else if (absAmount >= 100000) {
-      return `${sign}₹${(absAmount / 100000).toFixed(2)} L`;
-    } else {
-      return `${sign}₹${absAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
+    if (absAmount >= 10000000) return `${sign}₹${(absAmount / 10000000).toFixed(2)} Cr`;
+    if (absAmount >= 100000) return `${sign}₹${(absAmount / 100000).toFixed(2)} L`;
+    return `${sign}₹${absAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatCurrencyFull = (amount: number): string => {
@@ -170,47 +150,33 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
 
   const parseIndianCurrencyInput = (input: string): number => {
     const cleanInput = input.trim().toLowerCase().replace(/,/g, '');
-    
     const croreMatch = cleanInput.match(/^([\d.]+)\s*(crore|cr)s?$/);
     if (croreMatch) return parseFloat(croreMatch[1]) * 10000000;
-    
     const lakhMatch = cleanInput.match(/^([\d.]+)\s*(lakh|lac|l)s?$/);
     if (lakhMatch) return parseFloat(lakhMatch[1]) * 100000;
-    
     const thousandMatch = cleanInput.match(/^([\d.]+)\s*(thousand|k)s?$/);
     if (thousandMatch) return parseFloat(thousandMatch[1]) * 1000;
-    
     const plainNumber = parseFloat(cleanInput);
     return isNaN(plainNumber) ? 0 : plainNumber;
   };
 
-  // ✅ NEW: Direct status update function
   const handleStatusUpdate = async (invoice: Invoice, newStatus: 'paid' | 'cancelled') => {
     try {
       const updateData: any = {
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
-
       if (newStatus === 'paid') {
-        // Mark as fully paid if not already
         if ((invoice.paid_amount || 0) < invoice.amount) {
           updateData.paid_amount = invoice.amount;
           updateData.paid_date = new Date().toISOString().split('T')[0];
         }
       } else if (newStatus === 'cancelled') {
-        // Reset paid_amount for cancelled invoices
         updateData.paid_amount = 0;
         updateData.paid_date = null;
       }
-
-      const { error } = await supabase
-        .from('invoices')
-        .update(updateData)
-        .eq('id', invoice.id);
-
+      const { error } = await supabase.from('invoices').update(updateData).eq('id', invoice.id);
       if (error) throw error;
-
       toast.success(`Invoice marked as ${newStatus}`);
       setStatusDialogOpen(false);
       setSelectedInvoice(null);
@@ -224,19 +190,15 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
   const exportToPDF = (invoice: Invoice) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.text('INVOICE', pageWidth / 2, 30, { align: 'center' });
-    
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Invoice #: ${invoice.invoice_number}`, 20, 50);
     doc.text(`Status: ${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}`, pageWidth - 20, 50, { align: 'right' });
-    
     doc.setLineWidth(0.5);
     doc.line(20, 55, pageWidth - 20, 55);
-    
     let yPos = 70;
     if (invoice.projects?.name) {
       doc.setFont('helvetica', 'bold');
@@ -245,13 +207,11 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       doc.text(invoice.projects.name, 60, yPos);
       yPos += 10;
     }
-    
     doc.setFont('helvetica', 'bold');
     doc.text('Issue Date:', 20, yPos);
     doc.setFont('helvetica', 'normal');
     doc.text(new Date(invoice.issue_date).toLocaleDateString('en-IN'), 60, yPos);
     yPos += 10;
-    
     if (invoice.due_date) {
       doc.setFont('helvetica', 'bold');
       doc.text('Due Date:', 20, yPos);
@@ -259,7 +219,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       doc.text(new Date(invoice.due_date).toLocaleDateString('en-IN'), 60, yPos);
       yPos += 10;
     }
-    
     if (invoice.paid_date) {
       doc.setFont('helvetica', 'bold');
       doc.text('Paid Date:', 20, yPos);
@@ -267,7 +226,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       doc.text(new Date(invoice.paid_date).toLocaleDateString('en-IN'), 60, yPos);
       yPos += 10;
     }
-    
     if (invoice.description) {
       yPos += 10;
       doc.setFont('helvetica', 'bold');
@@ -278,25 +236,20 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       doc.text(descLines, 20, yPos);
       yPos += descLines.length * 7;
     }
-    
     yPos += 20;
     doc.setLineWidth(0.3);
     doc.line(20, yPos, pageWidth - 20, yPos);
     yPos += 15;
-    
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('Total Amount:', 20, yPos);
     doc.text(formatCurrencyFull(invoice.amount), pageWidth - 20, yPos, { align: 'right' });
-    
     yPos += 10;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`(${numberToWordsIndian(invoice.amount)} Only)`, 20, yPos);
-    
     doc.setFontSize(8);
     doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')}`, pageWidth / 2, 280, { align: 'center' });
-    
     doc.save(`${invoice.invoice_number}.pdf`);
     toast.success('Invoice PDF downloaded');
   };
@@ -305,42 +258,22 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
       'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
     const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    
     if (num === 0) return 'Zero Rupees';
-    
     const rupees = Math.floor(num);
     const paise = Math.round((num - rupees) * 100);
-    
     const convertBelowThousand = (n: number): string => {
       if (n < 20) return ones[n];
       if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
       return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertBelowThousand(n % 100) : '');
     };
-    
     let words = '';
     let remaining = rupees;
-    
-    if (remaining >= 10000000) {
-      words += convertBelowThousand(Math.floor(remaining / 10000000)) + ' Crore ';
-      remaining = remaining % 10000000;
-    }
-    if (remaining >= 100000) {
-      words += convertBelowThousand(Math.floor(remaining / 100000)) + ' Lakh ';
-      remaining = remaining % 100000;
-    }
-    if (remaining >= 1000) {
-      words += convertBelowThousand(Math.floor(remaining / 1000)) + ' Thousand ';
-      remaining = remaining % 1000;
-    }
-    if (remaining > 0) {
-      words += convertBelowThousand(remaining);
-    }
-    
+    if (remaining >= 10000000) { words += convertBelowThousand(Math.floor(remaining / 10000000)) + ' Crore '; remaining = remaining % 10000000; }
+    if (remaining >= 100000) { words += convertBelowThousand(Math.floor(remaining / 100000)) + ' Lakh '; remaining = remaining % 100000; }
+    if (remaining >= 1000) { words += convertBelowThousand(Math.floor(remaining / 1000)) + ' Thousand '; remaining = remaining % 1000; }
+    if (remaining > 0) { words += convertBelowThousand(remaining); }
     words = words.trim() + ' Rupees';
-    if (paise > 0) {
-      words += ' and ' + convertBelowThousand(paise) + ' Paise';
-    }
-    
+    if (paise > 0) words += ' and ' + convertBelowThousand(paise) + ' Paise';
     return words;
   };
 
@@ -363,15 +296,24 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       };
 
       if (editingInvoice) {
-        const { error } = await supabase
-          .from('invoices')
-          .update(invoiceData)
-          .eq('id', editingInvoice.id);
+        const { error } = await supabase.from('invoices').update(invoiceData).eq('id', editingInvoice.id);
         if (error) throw error;
+
+        // If payment amount is provided, record payment
+        if (form.payment_amount) {
+          await recordPaymentForInvoice(editingInvoice.id, editingInvoice.amount, editingInvoice.paid_amount || 0);
+        }
+
         toast.success('Invoice updated');
       } else {
-        const { error } = await supabase.from('invoices').insert(invoiceData);
+        const { data, error } = await supabase.from('invoices').insert(invoiceData).select().single();
         if (error) throw error;
+
+        // If payment amount is provided on creation, record it
+        if (form.payment_amount && data) {
+          await recordPaymentForInvoice(data.id, parseIndianCurrencyInput(form.amount), 0);
+        }
+
         toast.success('Invoice created');
       }
 
@@ -381,6 +323,37 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
     } catch (error: any) {
       toast.error(error.message || 'Error saving invoice');
     }
+  };
+
+  const recordPaymentForInvoice = async (invoiceId: string, totalAmount: number, currentPaid: number) => {
+    const paymentAmount = parseIndianCurrencyInput(form.payment_amount);
+    const remaining = totalAmount - currentPaid;
+
+    if (paymentAmount <= 0) return;
+    if (paymentAmount > remaining) {
+      toast.error(`Payment exceeds remaining balance of ${formatCurrencyFull(remaining)}`);
+      return;
+    }
+
+    const { error: paymentError } = await supabase.from('invoice_payments').insert({
+      invoice_id: invoiceId,
+      amount: paymentAmount,
+      payment_date: form.payment_date,
+      payment_method: form.payment_method || null,
+      notes: form.payment_notes || null,
+      recorded_by: userId,
+    });
+    if (paymentError) throw paymentError;
+
+    const newPaidAmount = currentPaid + paymentAmount;
+    const newStatus = newPaidAmount >= totalAmount ? 'paid' : undefined;
+    const paidDate = newPaidAmount >= totalAmount ? new Date().toISOString().split('T')[0] : undefined;
+
+    const updateData: any = { paid_amount: newPaidAmount };
+    if (newStatus) updateData.status = newStatus;
+    if (paidDate) updateData.paid_date = paidDate;
+
+    await supabase.from('invoices').update(updateData).eq('id', invoiceId);
   };
 
   const handleDelete = async (id: string) => {
@@ -404,87 +377,38 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       issue_date: new Date().toISOString().split('T')[0],
       due_date: '',
       description: '',
+      payment_method: '',
+      payment_amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_notes: '',
     });
     setEditingInvoice(null);
   };
 
-  const resetPaymentForm = () => {
-    setPaymentForm({
-      amount: '',
-      payment_date: new Date().toISOString().split('T')[0],
-      payment_method: '',
-      notes: '',
-    });
-    setSelectedInvoice(null);
-  };
-
   const openPaymentDialog = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
     const remaining = invoice.amount - (invoice.paid_amount || 0);
-    setPaymentForm({
-      amount: remaining > 0 ? remaining.toString() : '',
-      payment_date: new Date().toISOString().split('T')[0],
+    setEditingInvoice(invoice);
+    setForm({
+      project_id: invoice.project_id || '',
+      invoice_number: invoice.invoice_number,
+      amount: invoice.amount.toString(),
+      status: invoice.status,
+      issue_date: invoice.issue_date,
+      due_date: invoice.due_date || '',
+      description: invoice.description || '',
       payment_method: '',
-      notes: '',
+      payment_amount: remaining > 0 ? remaining.toString() : '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_notes: '',
     });
-    setPaymentDialogOpen(true);
+    setDialogOpen(true);
   };
 
-  // ✅ FIXED: Correctly calculates totalReceived using paid_amount
   const totalBilled = invoices.reduce((sum, inv) => sum + inv.amount, 0);
   const totalReceived = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
-  // ✅ FIXED: Outstanding now correctly reflects ALL paid_amount changes
   const totalOutstanding = invoices
     .filter((inv) => inv.status !== 'cancelled')
     .reduce((sum, inv) => sum + (inv.amount - (inv.paid_amount || 0)), 0);
-
-  const handleRecordPayment = async () => {
-    if (!selectedInvoice || !paymentForm.amount) {
-      toast.error('Payment amount is required');
-      return;
-    }
-
-    const paymentAmount = parseIndianCurrencyInput(paymentForm.amount);
-    const remaining = selectedInvoice.amount - (selectedInvoice.paid_amount || 0);
-    
-    if (paymentAmount > remaining) {
-      toast.error(`Payment exceeds remaining balance of ${formatCurrencyFull(remaining)}`);
-      return;
-    }
-
-    try {
-      const { error: paymentError } = await supabase.from('invoice_payments').insert({
-        invoice_id: selectedInvoice.id,
-        amount: paymentAmount,
-        payment_date: paymentForm.payment_date,
-        payment_method: paymentForm.payment_method || null,
-        notes: paymentForm.notes || null,
-        recorded_by: userId,
-      });
-      if (paymentError) throw paymentError;
-
-      const newPaidAmount = (selectedInvoice.paid_amount || 0) + paymentAmount;
-      const newStatus = newPaidAmount >= selectedInvoice.amount ? 'paid' : selectedInvoice.status;
-      const paidDate = newPaidAmount >= selectedInvoice.amount ? new Date().toISOString().split('T')[0] : selectedInvoice.paid_date;
-
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({ 
-          paid_amount: newPaidAmount,
-          status: newStatus,
-          paid_date: paidDate
-        })
-        .eq('id', selectedInvoice.id);
-      if (updateError) throw updateError;
-
-      toast.success('Payment recorded');
-      resetPaymentForm();
-      setPaymentDialogOpen(false);
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error recording payment');
-    }
-  };
 
   const startEdit = (invoice: Invoice) => {
     setEditingInvoice(invoice);
@@ -496,11 +420,14 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       issue_date: invoice.issue_date,
       due_date: invoice.due_date || '',
       description: invoice.description || '',
+      payment_method: '',
+      payment_amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_notes: '',
     });
     setDialogOpen(true);
   };
 
-  // ✅ NEW: Open status confirmation dialog
   const openStatusDialog = (invoice: Invoice, action: 'settled' | 'cancelled') => {
     setSelectedInvoice(invoice);
     setStatusAction(action);
@@ -538,11 +465,12 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                 New Invoice
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md bg-card">
+            <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-foreground">{editingInvoice ? 'Edit Invoice' : 'Create Invoice'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {/* Invoice Details */}
                 <div>
                   <Label className="text-foreground">Invoice Number *</Label>
                   <Input
@@ -555,9 +483,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                 <div>
                   <Label className="text-foreground">Project</Label>
                   <Select value={form.project_id} onValueChange={(v) => setForm({ ...form, project_id: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
                     <SelectContent>
                       {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -583,29 +509,17 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-foreground">Issue Date</Label>
-                    <Input
-                      type="date"
-                      value={form.issue_date}
-                      onChange={(e) => setForm({ ...form, issue_date: e.target.value })}
-                      className="text-foreground"
-                    />
+                    <Input type="date" value={form.issue_date} onChange={(e) => setForm({ ...form, issue_date: e.target.value })} className="text-foreground" />
                   </div>
                   <div>
                     <Label className="text-foreground">Due Date</Label>
-                    <Input
-                      type="date"
-                      value={form.due_date}
-                      onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                      className="text-foreground"
-                    />
+                    <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="text-foreground" />
                   </div>
                 </div>
                 <div>
                   <Label className="text-foreground">Status</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as InvoiceStatus })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-popover">
                       <SelectGroup>
                         <SelectLabel className="text-xs text-muted-foreground">Pending</SelectLabel>
@@ -631,6 +545,66 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                     className="text-foreground"
                   />
                 </div>
+
+                {/* Payment Section */}
+                <Separator />
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Payment Details (Optional)
+                </h4>
+
+                {editingInvoice && (
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total: <span className="font-medium text-foreground">{formatCurrencyFull(editingInvoice.amount)}</span></p>
+                    <p className="text-sm text-muted-foreground">Paid: <span className="font-medium text-green-500">{formatCurrencyFull(editingInvoice.paid_amount || 0)}</span></p>
+                    <p className="text-sm text-muted-foreground">Remaining: <span className="font-medium text-foreground">{formatCurrencyFull(editingInvoice.amount - (editingInvoice.paid_amount || 0))}</span></p>
+                  </div>
+                )}
+
+                <div>
+                  <Label className="text-foreground">Payment Amount</Label>
+                  <Input
+                    type="text"
+                    value={form.payment_amount}
+                    onChange={(e) => setForm({ ...form, payment_amount: e.target.value })}
+                    placeholder="e.g., 50 thousand, 1 lakh"
+                    className="text-foreground"
+                  />
+                  {form.payment_amount && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      = {formatCurrencyFull(parseIndianCurrencyInput(form.payment_amount))}
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-foreground">Payment Date</Label>
+                    <Input type="date" value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} className="text-foreground" />
+                  </div>
+                  <div>
+                    <Label className="text-foreground">Payment Method</Label>
+                    <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-foreground">Payment Notes</Label>
+                  <Textarea
+                    value={form.payment_notes}
+                    onChange={(e) => setForm({ ...form, payment_notes: e.target.value })}
+                    placeholder="Payment notes..."
+                    className="text-foreground"
+                  />
+                </div>
+
                 <Button onClick={handleSubmit} className="w-full">
                   {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
                 </Button>
@@ -644,28 +618,17 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search invoices..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 text-foreground"
-          />
+          <Input placeholder="Search invoices..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 text-foreground" />
         </div>
         <Select value={projectFilter} onValueChange={setProjectFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter by project" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Filter by project" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-            ))}
+            {projects.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Filter by status" /></SelectTrigger>
           <SelectContent className="bg-popover">
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectSeparator />
@@ -685,7 +648,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
         </Select>
       </div>
 
-      {/* ✅ NEW: Status Confirmation Dialog */}
+      {/* Status Confirmation Dialog */}
       <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
@@ -704,7 +667,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => selectedInvoice && statusAction && handleStatusUpdate(selectedInvoice, statusAction === 'settled' ? 'paid' : 'cancelled')}
               className={statusAction === 'settled' ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}
             >
@@ -714,83 +677,10 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={(open) => { setPaymentDialogOpen(open); if (!open) resetPaymentForm(); }}>
-        <DialogContent className="max-w-md bg-card">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Record Payment</DialogTitle>
-          </DialogHeader>
-          {selectedInvoice && (
-            <div className="space-y-4">
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Invoice: <span className="font-medium text-foreground">{selectedInvoice.invoice_number}</span></p>
-                <p className="text-sm text-muted-foreground">Total: <span className="font-medium text-foreground">{formatCurrencyFull(selectedInvoice.amount)}</span></p>
-                <p className="text-sm text-muted-foreground">Paid: <span className="font-medium text-green-500">{formatCurrencyFull(selectedInvoice.paid_amount || 0)}</span></p>
-                <p className="text-sm text-muted-foreground">Remaining: <span className="font-medium text-foreground">{formatCurrencyFull(selectedInvoice.amount - (selectedInvoice.paid_amount || 0))}</span></p>
-              </div>
-              <div>
-                <Label className="text-foreground">Payment Amount *</Label>
-                <Input
-                  type="text"
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  placeholder="e.g., 50 thousand, 1 lakh"
-                  className="text-foreground"
-                />
-                {paymentForm.amount && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    = {formatCurrencyFull(parseIndianCurrencyInput(paymentForm.amount))}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="text-foreground">Payment Date</Label>
-                <Input
-                  type="date"
-                  value={paymentForm.payment_date}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-                  className="text-foreground"
-                />
-              </div>
-              <div>
-                <Label className="text-foreground">Payment Method</Label>
-                <Select value={paymentForm.payment_method} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_method: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select method" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-foreground">Notes</Label>
-                <Textarea
-                  value={paymentForm.notes}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                  placeholder="Payment notes..."
-                  className="text-foreground"
-                />
-              </div>
-              <Button onClick={handleRecordPayment} className="w-full">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Record Payment
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Summary Cards - NOW CORRECTLY REFLECTS paid_amount */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Billed</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Billed</CardTitle></CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-5 w-5 text-primary" />
@@ -799,9 +689,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Received</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Received</CardTitle></CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
@@ -810,9 +698,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle></CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-yellow-500" />
@@ -821,9 +707,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle></CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-500" />
@@ -837,9 +721,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
       <div className="space-y-3">
         {filteredInvoices.length === 0 ? (
           <Card className="bg-card border-border">
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No invoices found
-            </CardContent>
+            <CardContent className="py-8 text-center text-muted-foreground">No invoices found</CardContent>
           </Card>
         ) : (
           filteredInvoices.map((invoice) => {
@@ -847,7 +729,7 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
             const paymentProgress = invoice.amount > 0 ? (paidAmount / invoice.amount) * 100 : 0;
             const remaining = invoice.amount - paidAmount;
             const isFullyPaid = paidAmount >= invoice.amount;
-            
+
             return (
               <Card key={invoice.id} className="bg-card border-border hover:border-primary/50 transition-colors">
                 <CardContent className="p-4">
@@ -869,47 +751,28 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                         <div className="text-right">
                           <span className="text-xl font-bold text-foreground">{formatCurrencyFull(invoice.amount)}</span>
                           {paidAmount > 0 && (
-                            <p className={`text-xs ${isFullyPaid ? 'text-green-500' : 'text-green-500'}`}>
-                              Paid: {formatCurrencyFull(paidAmount)}
-                            </p>
+                            <p className="text-xs text-green-500">Paid: {formatCurrencyFull(paidAmount)}</p>
                           )}
                         </div>
                         <div className="flex gap-2 flex-wrap">
                           <Button variant="ghost" size="icon" onClick={() => exportToPDF(invoice)} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
-                          
-                          {/* ✅ NEW: Quick status buttons */}
                           {canManageFinancials() && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
                             <>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => openStatusDialog(invoice, 'settled')}
-                                title="Mark as Settled"
-                                className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => openStatusDialog(invoice, 'settled')} title="Mark as Settled" className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
                                 <Check className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => openStatusDialog(invoice, 'cancelled')}
-                                title="Cancel Invoice"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => openStatusDialog(invoice, 'cancelled')} title="Cancel Invoice" className="text-destructive hover:text-destructive hover:bg-destructive/10">
                                 <X className="h-4 w-4" />
                               </Button>
                             </>
                           )}
-                          
-                          {/* Payment button only for partially paid or unpaid */}
                           {canManageFinancials() && !isFullyPaid && invoice.status !== 'cancelled' && (
                             <Button variant="ghost" size="icon" onClick={() => openPaymentDialog(invoice)} title="Record Payment">
                               <CreditCard className="h-4 w-4 text-green-500" />
                             </Button>
                           )}
-                          
                           {canManageFinancials() && (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => startEdit(invoice)}>
@@ -925,8 +788,6 @@ export function FinancialsTab({ userId, userRole }: FinancialsTabProps) {
                         </div>
                       </div>
                     </div>
-                    
-                    {/* Payment Progress */}
                     {paidAmount > 0 && !isFullyPaid && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-muted-foreground">

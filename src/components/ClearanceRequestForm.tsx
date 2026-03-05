@@ -76,7 +76,8 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
     project_id: '',
     notes: '',
     urgency: 'medium',
-    supporting_documents: ''
+    supporting_documents: '',
+    clearance_date: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
@@ -197,9 +198,10 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
     try {
       setSubmitting(true);
 
+      let notesContent = `Clearance Date: ${clearanceForm.clearance_date}\nUrgency: ${clearanceForm.urgency}\n\n${clearanceForm.notes}`;
       const notesWithAttachments = uploadedFiles.length > 0
-        ? `${clearanceForm.notes}\n\n--- Attachments ---\n${uploadedFiles.map(f => `${f.name}: ${f.url}`).join('\n')}`
-        : clearanceForm.notes;
+        ? `${notesContent}\n\n--- Attachments ---\n${uploadedFiles.map(f => `${f.name}: ${f.url}`).join('\n')}`
+        : notesContent;
       
       const { error } = await supabase
         .from('task_clearances')
@@ -220,7 +222,8 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
         project_id: '',
         notes: '',
         urgency: 'medium',
-        supporting_documents: ''
+        supporting_documents: '',
+        clearance_date: new Date().toISOString().split('T')[0]
       });
       setUploadedFiles([]);
       fetchMyClearances();
@@ -474,22 +477,32 @@ export const ClearanceRequestForm = ({ userId, userRole }: ClearanceRequestFormP
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Select Task *</label>
-                  <Select value={clearanceForm.task_id} onValueChange={(val) => setClearanceForm(prev => ({ ...prev, task_id: val }))}>
-                    <SelectTrigger><SelectValue placeholder="Choose a task..." /></SelectTrigger>
-                    <SelectContent>
-                      {filteredTasks.length === 0 ? (
-                        <SelectItem value="none" disabled>No tasks available</SelectItem>
-                      ) : (
-                        filteredTasks.map(task => (
-                          <SelectItem key={task.id} value={task.id}>
-                            {task.title} {task.projects?.name ? `(${task.projects.name})` : ''}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Select Task *</label>
+                    <Select value={clearanceForm.task_id} onValueChange={(val) => setClearanceForm(prev => ({ ...prev, task_id: val }))}>
+                      <SelectTrigger><SelectValue placeholder="Choose a task..." /></SelectTrigger>
+                      <SelectContent>
+                        {filteredTasks.length === 0 ? (
+                          <SelectItem value="none" disabled>No tasks available</SelectItem>
+                        ) : (
+                          filteredTasks.map(task => (
+                            <SelectItem key={task.id} value={task.id}>
+                              {task.title} {task.projects?.name ? `(${task.projects.name})` : ''}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Clearance Date *</label>
+                    <Input
+                      type="date"
+                      value={clearanceForm.clearance_date}
+                      onChange={(e) => setClearanceForm(prev => ({ ...prev, clearance_date: e.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
