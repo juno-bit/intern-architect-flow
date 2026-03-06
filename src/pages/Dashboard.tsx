@@ -20,6 +20,7 @@ import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 import MeetingsTab from '@/components/MeetingsTab';
 import DocumentsTab from '@/components/DocumentsTab';
 import { FinancialsTab } from '@/components/invoices';
+import WorklogTab from '@/components/WorklogTab';
 
 interface Task {
   id: string;
