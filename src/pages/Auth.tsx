@@ -15,7 +15,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'intern' | 'junior_architect' | 'chief_architect'>('intern');
+  const [role, setRole] = useState<'intern' | 'junior_architect' | 'chief_architect' | 'civil_engineer'>('intern');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -160,6 +160,7 @@ export default function Auth() {
                     <SelectContent>
                       <SelectItem value="intern">Intern</SelectItem>
                       <SelectItem value="junior_architect">Junior Architect</SelectItem>
+                      <SelectItem value="civil_engineer">Civil Engineer</SelectItem>
                       <SelectItem value="chief_architect">Chief Architect</SelectItem>
                     </SelectContent>
                   </Select>
