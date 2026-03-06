@@ -802,7 +802,11 @@ export type Database = {
       update_overdue_tasks: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "chief_architect" | "junior_architect" | "intern"
+      app_role:
+        | "chief_architect"
+        | "junior_architect"
+        | "intern"
+        | "civil_engineer"
       invoice_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
       notification_type:
         | "deadline_reminder"
@@ -944,7 +948,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["chief_architect", "junior_architect", "intern"],
+      app_role: [
+        "chief_architect",
+        "junior_architect",
+        "intern",
+        "civil_engineer",
+      ],
       invoice_status: ["draft", "sent", "paid", "overdue", "cancelled"],
       notification_type: [
         "deadline_reminder",
