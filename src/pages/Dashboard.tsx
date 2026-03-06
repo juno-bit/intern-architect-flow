@@ -368,6 +368,7 @@ export default function Dashboard() {
     switch (role) {
       case 'chief_architect': return 'Chief Architect';
       case 'junior_architect': return 'Junior Architect';
+      case 'civil_engineer': return 'Civil Engineer';
       case 'intern': return 'Intern';
       default: return 'Team Member';
     }
