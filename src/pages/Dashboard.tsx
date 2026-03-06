@@ -489,15 +489,21 @@ export default function Dashboard() {
             />
           </TabsContent>
 
-          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
+          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'civil_engineer') && (
             <TabsContent value="financials" className="space-y-6">
               <FinancialsTab userId={user?.id || ''} userRole={profile?.role || ''} />
             </TabsContent>
           )}
           
-          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'intern') && (
+          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'civil_engineer' || profile?.role === 'intern') && (
             <TabsContent value="meetings" className="space-y-6">
               <MeetingsTab userId={user?.id || ''} userRole={profile?.role || ''} />
+            </TabsContent>
+          )}
+
+          {profile?.role === 'civil_engineer' && (
+            <TabsContent value="worklog" className="space-y-6">
+              <WorklogTab userId={user?.id || ''} userRole={profile?.role || ''} />
             </TabsContent>
           )}
 
