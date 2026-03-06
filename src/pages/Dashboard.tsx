@@ -20,6 +20,7 @@ import EnhancedProjectsTab from '@/components/EnhancedProjectsTab';
 import MeetingsTab from '@/components/MeetingsTab';
 import DocumentsTab from '@/components/DocumentsTab';
 import { FinancialsTab } from '@/components/invoices';
+import WorklogTab from '@/components/WorklogTab';
 
 interface Task {
   id: string;
@@ -367,6 +368,7 @@ export default function Dashboard() {
     switch (role) {
       case 'chief_architect': return 'Chief Architect';
       case 'junior_architect': return 'Junior Architect';
+      case 'civil_engineer': return 'Civil Engineer';
       case 'intern': return 'Intern';
       default: return 'Team Member';
     }
@@ -409,17 +411,20 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="enhanced-tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${profile?.role === 'chief_architect' ? 9 : profile?.role === 'civil_engineer' ? 8 : (profile?.role === 'junior_architect' ? 7 : 6)}, minmax(0, 1fr))` }}>
             <TabsTrigger value="enhanced-tasks">Task Management</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="all-tasks">All Tasks</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
-            {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
+            {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'civil_engineer') && (
               <>
                 <TabsTrigger value="meetings">Meetings</TabsTrigger>
                 <TabsTrigger value="financials">Financials</TabsTrigger>
               </>
+            )}
+            {profile?.role === 'civil_engineer' && (
+              <TabsTrigger value="worklog">Worklog</TabsTrigger>
             )}
             {profile?.role === 'intern' && (
               <TabsTrigger value="meetings">Meetings</TabsTrigger>
@@ -484,15 +489,21 @@ export default function Dashboard() {
             />
           </TabsContent>
 
-          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect') && (
+          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'civil_engineer') && (
             <TabsContent value="financials" className="space-y-6">
               <FinancialsTab userId={user?.id || ''} userRole={profile?.role || ''} />
             </TabsContent>
           )}
           
-          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'intern') && (
+          {(profile?.role === 'chief_architect' || profile?.role === 'junior_architect' || profile?.role === 'civil_engineer' || profile?.role === 'intern') && (
             <TabsContent value="meetings" className="space-y-6">
               <MeetingsTab userId={user?.id || ''} userRole={profile?.role || ''} />
+            </TabsContent>
+          )}
+
+          {profile?.role === 'civil_engineer' && (
+            <TabsContent value="worklog" className="space-y-6">
+              <WorklogTab userId={user?.id || ''} userRole={profile?.role || ''} />
             </TabsContent>
           )}
 
