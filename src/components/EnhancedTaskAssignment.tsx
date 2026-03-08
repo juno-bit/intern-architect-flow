@@ -75,6 +75,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
     title: "",
     description: "",
     priority: "medium",
+    start_date: "",
     due_date: "",
     project_id: "",
     assigned_to: "",
@@ -254,6 +255,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         title: newTask.title,
         description: newTask.description,
         priority: newTask.priority as "low" | "medium" | "high" | "urgent",
+        start_date: newTask.start_date || null,
         due_date: newTask.due_date || null,
         project_id: newTask.project_id || null,
         assigned_to: newTask.assigned_to === "self" ? userId : newTask.assigned_to || null,
@@ -272,6 +274,7 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
         title: "",
         description: "",
         priority: "medium",
+        start_date: "",
         due_date: "",
         project_id: "",
         assigned_to: "",
@@ -443,11 +446,34 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                       <SelectItem value="urgent">Urgent</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="date"
-                    value={newTask.due_date}
-                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                  />
+                  <Select value={newTask.task_phase} onValueChange={(value) => setNewTask({ ...newTask, task_phase: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select phase" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border border-border z-50">
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="ongoing">Ongoing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Start Date</label>
+                    <Input
+                      type="date"
+                      value={newTask.start_date}
+                      onChange={(e) => setNewTask({ ...newTask, start_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Due Date</label>
+                    <Input
+                      type="date"
+                      value={newTask.due_date}
+                      onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Select value={newTask.project_id} onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}>
@@ -488,9 +514,12 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
                   />
                   <Input
-                    placeholder="Task phase"
-                    value={newTask.task_phase}
-                    onChange={(e) => setNewTask({ ...newTask, task_phase: e.target.value })}
+                    placeholder="Actual hours"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value=""
+                    disabled
                   />
                 </div>
                 <div className="flex gap-2">
