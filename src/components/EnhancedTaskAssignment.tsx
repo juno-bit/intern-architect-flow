@@ -504,24 +504,14 @@ export const EnhancedTaskAssignment = ({ userId, userRole }: EnhancedTaskAssignm
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Estimated hours"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={newTask.estimated_hours}
-                    onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
-                  />
-                  <Input
-                    placeholder="Actual hours"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value=""
-                    disabled
-                  />
-                </div>
+                <Input
+                  placeholder="Estimated hours"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={newTask.estimated_hours}
+                  onChange={(e) => setNewTask({ ...newTask, estimated_hours: e.target.value })}
+                />
                 <div className="flex gap-2">
                   <Button onClick={handleCreateTask} variant="success" size="lg">Create Task</Button>
                   <Button variant="outline" size="lg" onClick={() => setShowCreateDialog(false)}>
