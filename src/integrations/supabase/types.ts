@@ -586,6 +586,7 @@ export type Database = {
           status: string
           task_id: string
           updated_at: string
+          urgency: string | null
         }
         Insert: {
           cleared_at?: string | null
@@ -598,6 +599,7 @@ export type Database = {
           status?: string
           task_id: string
           updated_at?: string
+          urgency?: string | null
         }
         Update: {
           cleared_at?: string | null
@@ -610,6 +612,7 @@ export type Database = {
           status?: string
           task_id?: string
           updated_at?: string
+          urgency?: string | null
         }
         Relationships: [
           {

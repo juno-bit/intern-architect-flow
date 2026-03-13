@@ -1,0 +1,1 @@
+ALTER TABLE public.task_clearances ADD COLUMN IF NOT EXISTS urgency text DEFAULT 'medium';
